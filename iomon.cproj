@@ -1,0 +1,632 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <SchemaVersion>2.0</SchemaVersion>
+    <ProjectVersion>6.0</ProjectVersion>
+    <ToolchainName>com.Atmel.AVRGCC32</ToolchainName>
+    <ProjectGuid>{fda8fce8-a61d-43c5-b896-29ca961c7f4f}</ProjectGuid>
+    <avrdevice>AT32UC3C1512C</avrdevice>
+    <avrdeviceseries>uc3c</avrdeviceseries>
+    <OutputType>Executable</OutputType>
+    <Language>C</Language>
+    <OutputFileName>$(MSBuildProjectName)</OutputFileName>
+    <OutputFileExtension>.elf</OutputFileExtension>
+    <OutputDirectory>$(MSBuildProjectDirectory)\$(Configuration)</OutputDirectory>
+    <AssemblyName>iomon</AssemblyName>
+    <Name>iomon</Name>
+    <RootNamespace>iomon</RootNamespace>
+    <ToolchainFlavour>Native</ToolchainFlavour>
+    <KeepTimersRunning>true</KeepTimersRunning>
+    <OverrideVtor>false</OverrideVtor>
+    <OverrideVtorValue />
+    <eraseonlaunchrule>0</eraseonlaunchrule>
+    <avrtool>com.atmel.avrdbg.tool.jtagicemk3</avrtool>
+    <avrtoolinterface>JTAG</avrtoolinterface>
+    <com_atmel_avrdbg_tool_jtagicemk3>
+      <ToolType>com.atmel.avrdbg.tool.jtagicemk3</ToolType>
+      <ToolName>JTAGICE3</ToolName>
+      <ToolNumber>J30200016025</ToolNumber>
+      <KeepTimersRunning>true</KeepTimersRunning>
+      <OverrideVtor>false</OverrideVtor>
+      <OverrideVtorValue>
+      </OverrideVtorValue>
+      <Channel>
+        <host>127.0.0.1</host>
+        <port>1031</port>
+        <ssl>False</ssl>
+      </Channel>
+      <ToolOptions>
+        <InterfaceName>JTAG</InterfaceName>
+        <InterfaceProperties>
+          <JtagDbgClock>250000</JtagDbgClock>
+          <JtagProgClock>1000000</JtagProgClock>
+          <IspClock>150000</IspClock>
+          <JtagInChain>false</JtagInChain>
+          <JtagEnableExtResetOnStartSession>false</JtagEnableExtResetOnStartSession>
+          <JtagDevicesBefore>0</JtagDevicesBefore>
+          <JtagDevicesAfter>0</JtagDevicesAfter>
+          <JtagInstrBitsBefore>0</JtagInstrBitsBefore>
+          <JtagInstrBitsAfter>0</JtagInstrBitsAfter>
+          <AWireMaxBaud>250000</AWireMaxBaud>
+        </InterfaceProperties>
+      </ToolOptions>
+    </com_atmel_avrdbg_tool_jtagicemk3>
+    <AsfVersion>3.5.0</AsfVersion>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
+    <ToolchainSettings>
+      <Avr32Gcc>
+        <avr32gcc.common.outputfiles.hex>True</avr32gcc.common.outputfiles.hex>
+        <avr32gcc.common.outputfiles.lss>True</avr32gcc.common.outputfiles.lss>
+        <avr32gcc.common.outputfiles.eep>True</avr32gcc.common.outputfiles.eep>
+        <avr32gcc.common.outputfiles.srec>True</avr32gcc.common.outputfiles.srec>
+        <avr32gcc.compiler.symbols.DefSymbols>
+          <ListValues>
+            <Value>BOARD=UC3C_EK</Value>
+            <Value>UDD_ENABLE</Value>
+          </ListValues>
+        </avr32gcc.compiler.symbols.DefSymbols>
+        <avr32gcc.compiler.directories.IncludePaths>
+          <ListValues>
+            <Value>../lib/usb/udc</Value>
+            <Value>../lib/preprocessor</Value>
+            <Value>../lib/flashc</Value>
+            <Value>../lib/usart</Value>
+            <Value>../lib/sleepmgr</Value>
+            <Value>../lib/intc</Value>
+            <Value>../lib/pm</Value>
+            <Value>../lib/usbc</Value>
+            <Value>../lib</Value>
+            <Value>../lib/usb/class/cdc/device</Value>
+            <Value>../lib/usb/class/cdc</Value>
+            <Value>../lib/clock</Value>
+            <Value>../lib/gpio</Value>
+            <Value>../lib/scif</Value>
+            <Value>../lib/usb</Value>
+            <Value>../src</Value>
+            <Value>../src/config</Value>
+          </ListValues>
+        </avr32gcc.compiler.directories.IncludePaths>
+        <avr32gcc.compiler.optimization.level>Optimize for size (-Os)</avr32gcc.compiler.optimization.level>
+        <avr32gcc.compiler.optimization.OtherFlags>-fdata-sections</avr32gcc.compiler.optimization.OtherFlags>
+        <avr32gcc.compiler.optimization.PrepareFunctionsForGarbageCollection>True</avr32gcc.compiler.optimization.PrepareFunctionsForGarbageCollection>
+        <avr32gcc.compiler.optimization.UseAssemblerForPseudoInstructions>True</avr32gcc.compiler.optimization.UseAssemblerForPseudoInstructions>
+        <avr32gcc.compiler.warnings.AllWarnings>True</avr32gcc.compiler.warnings.AllWarnings>
+        <avr32gcc.compiler.miscellaneous.OtherFlags>-Werror-implicit-function-declaration -Wmissing-prototypes -Wpointer-arith -Wstrict-prototypes -mno-cond-exec-before-reload -mrelax -std=gnu99</avr32gcc.compiler.miscellaneous.OtherFlags>
+        <avr32gcc.linker.general.DoNotUseStandardStartFiles>True</avr32gcc.linker.general.DoNotUseStandardStartFiles>
+        <avr32gcc.linker.libraries.Libraries>
+          <ListValues>
+            <Value>m</Value>
+          </ListValues>
+        </avr32gcc.linker.libraries.Libraries>
+        <avr32gcc.linker.optimization.GarbageCollectUnusedSections>True</avr32gcc.linker.optimization.GarbageCollectUnusedSections>
+        <avr32gcc.linker.optimization.PutReadOnlyDataInWritableDataSection>True</avr32gcc.linker.optimization.PutReadOnlyDataInWritableDataSection>
+        <avr32gcc.linker.optimization.AllowDirectReferencesToDataSection>True</avr32gcc.linker.optimization.AllowDirectReferencesToDataSection>
+        <avr32gcc.linker.miscellaneous.LinkerFlags>-T../lib/linker/link_uc3c0512c.lds -Wl,--relax -Wl,-e,_trampoline</avr32gcc.linker.miscellaneous.LinkerFlags>
+        <avr32gcc.assembler.general.AssemblerFlags>-mrelax</avr32gcc.assembler.general.AssemblerFlags>
+        <avr32gcc.assembler.general.IncludePaths>
+          <ListValues>
+            <Value>../lib/usb/udc</Value>
+            <Value>../lib/preprocessor</Value>
+            <Value>../lib/flashc</Value>
+            <Value>../lib/usart</Value>
+            <Value>../lib/sleepmgr</Value>
+            <Value>../lib/intc</Value>
+            <Value>../lib/pm</Value>
+            <Value>../lib/usbc</Value>
+            <Value>../lib</Value>
+            <Value>../lib/usb/class/cdc/device</Value>
+            <Value>../lib/usb/class/cdc</Value>
+            <Value>../lib/clock</Value>
+            <Value>../lib/gpio</Value>
+            <Value>../lib/scif</Value>
+            <Value>../lib/usb</Value>
+            <Value>../src</Value>
+            <Value>../src/config</Value>
+          </ListValues>
+        </avr32gcc.assembler.general.IncludePaths>
+        <avr32gcc.preprocessingassembler.general.AssemblerFlags>-DBOARD=UC3C_EK -DUDD_ENABLE -mrelax</avr32gcc.preprocessingassembler.general.AssemblerFlags>
+        <avr32gcc.preprocessingassembler.general.IncludePaths>
+          <ListValues>
+            <Value>../lib/usb/udc</Value>
+            <Value>../lib/preprocessor</Value>
+            <Value>../lib/flashc</Value>
+            <Value>../lib/usart</Value>
+            <Value>../lib/sleepmgr</Value>
+            <Value>../lib/intc</Value>
+            <Value>../lib/pm</Value>
+            <Value>../lib/usbc</Value>
+            <Value>../lib</Value>
+            <Value>../lib/usb/class/cdc/device</Value>
+            <Value>../lib/usb/class/cdc</Value>
+            <Value>../lib/clock</Value>
+            <Value>../lib/gpio</Value>
+            <Value>../lib/scif</Value>
+            <Value>../lib/usb</Value>
+            <Value>../src</Value>
+            <Value>../src/config</Value>
+          </ListValues>
+        </avr32gcc.preprocessingassembler.general.IncludePaths>
+      </Avr32Gcc>
+    </ToolchainSettings>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
+    <ToolchainSettings>
+      <Avr32Gcc>
+  <avr32gcc.common.outputfiles.hex>True</avr32gcc.common.outputfiles.hex>
+  <avr32gcc.common.outputfiles.lss>True</avr32gcc.common.outputfiles.lss>
+  <avr32gcc.common.outputfiles.eep>True</avr32gcc.common.outputfiles.eep>
+  <avr32gcc.common.outputfiles.srec>True</avr32gcc.common.outputfiles.srec>
+  <avr32gcc.compiler.symbols.DefSymbols>
+    <ListValues>
+      <Value>BOARD=UC3C_EK</Value>
+      <Value>UDD_ENABLE</Value>
+      <Value>_ASSERT_ENABLE_</Value>
+    </ListValues>
+  </avr32gcc.compiler.symbols.DefSymbols>
+  <avr32gcc.compiler.directories.IncludePaths>
+    <ListValues>
+      <Value>../lib/usb/udc</Value>
+      <Value>../lib/preprocessor</Value>
+      <Value>../lib/flashc</Value>
+      <Value>../lib/usart</Value>
+      <Value>../lib/sleepmgr</Value>
+      <Value>../lib/intc</Value>
+      <Value>../lib/pm</Value>
+      <Value>../lib/usbc</Value>
+      <Value>../lib</Value>
+      <Value>../lib/usb/class/cdc/device</Value>
+      <Value>../lib/usb/class/cdc</Value>
+      <Value>../lib/clock</Value>
+      <Value>../lib/gpio</Value>
+      <Value>../lib/scif</Value>
+      <Value>../lib/usb</Value>
+      <Value>../src</Value>
+      <Value>../src/config</Value>
+      <Value>../lib/pdca</Value>
+    </ListValues>
+  </avr32gcc.compiler.directories.IncludePaths>
+  <avr32gcc.compiler.optimization.OtherFlags>-fdata-sections</avr32gcc.compiler.optimization.OtherFlags>
+  <avr32gcc.compiler.optimization.PrepareFunctionsForGarbageCollection>True</avr32gcc.compiler.optimization.PrepareFunctionsForGarbageCollection>
+  <avr32gcc.compiler.optimization.UseAssemblerForPseudoInstructions>True</avr32gcc.compiler.optimization.UseAssemblerForPseudoInstructions>
+  <avr32gcc.compiler.optimization.DebugLevel>Maximum (-g3)</avr32gcc.compiler.optimization.DebugLevel>
+  <avr32gcc.compiler.warnings.AllWarnings>True</avr32gcc.compiler.warnings.AllWarnings>
+  <avr32gcc.compiler.warnings.Undefined>True</avr32gcc.compiler.warnings.Undefined>
+  <avr32gcc.compiler.warnings.Pedantic>True</avr32gcc.compiler.warnings.Pedantic>
+  <avr32gcc.compiler.miscellaneous.OtherFlags>-Werror-implicit-function-declaration -Wmissing-prototypes -Wpointer-arith -Wstrict-prototypes -mno-cond-exec-before-reload -mrelax -std=gnu99</avr32gcc.compiler.miscellaneous.OtherFlags>
+  <avr32gcc.linker.general.DoNotUseStandardStartFiles>True</avr32gcc.linker.general.DoNotUseStandardStartFiles>
+  <avr32gcc.linker.libraries.Libraries>
+    <ListValues>
+      <Value>m</Value>
+    </ListValues>
+  </avr32gcc.linker.libraries.Libraries>
+  <avr32gcc.linker.optimization.GarbageCollectUnusedSections>True</avr32gcc.linker.optimization.GarbageCollectUnusedSections>
+  <avr32gcc.linker.optimization.AllowDirectReferencesToDataSection>True</avr32gcc.linker.optimization.AllowDirectReferencesToDataSection>
+  <avr32gcc.linker.miscellaneous.LinkerFlags>-T../lib/linker/link_uc3c0512c.lds -Wl,-e,_trampoline</avr32gcc.linker.miscellaneous.LinkerFlags>
+  <avr32gcc.assembler.general.AssemblerFlags>-mrelax</avr32gcc.assembler.general.AssemblerFlags>
+  <avr32gcc.assembler.general.IncludePaths>
+    <ListValues>
+      <Value>../lib/usb/udc</Value>
+      <Value>../lib/preprocessor</Value>
+      <Value>../lib/flashc</Value>
+      <Value>../lib/usart</Value>
+      <Value>../lib/sleepmgr</Value>
+      <Value>../lib/intc</Value>
+      <Value>../lib/pm</Value>
+      <Value>../lib/usbc</Value>
+      <Value>../lib</Value>
+      <Value>../lib/usb/class/cdc/device</Value>
+      <Value>../lib/usb/class/cdc</Value>
+      <Value>../lib/clock</Value>
+      <Value>../lib/gpio</Value>
+      <Value>../lib/scif</Value>
+      <Value>../lib/usb</Value>
+      <Value>../src</Value>
+      <Value>../src/config</Value>
+    </ListValues>
+  </avr32gcc.assembler.general.IncludePaths>
+  <avr32gcc.assembler.debugging.DebugLevel>Default (-g)</avr32gcc.assembler.debugging.DebugLevel>
+  <avr32gcc.preprocessingassembler.general.AssemblerFlags>-DBOARD=UC3C_EK -DUDD_ENABLE -mrelax</avr32gcc.preprocessingassembler.general.AssemblerFlags>
+  <avr32gcc.preprocessingassembler.general.IncludePaths>
+    <ListValues>
+      <Value>../lib/usb/udc</Value>
+      <Value>../lib/preprocessor</Value>
+      <Value>../lib/flashc</Value>
+      <Value>../lib/usart</Value>
+      <Value>../lib/sleepmgr</Value>
+      <Value>../lib/intc</Value>
+      <Value>../lib/pm</Value>
+      <Value>../lib/usbc</Value>
+      <Value>../lib</Value>
+      <Value>../lib/usb/class/cdc/device</Value>
+      <Value>../lib/usb/class/cdc</Value>
+      <Value>../lib/clock</Value>
+      <Value>../lib/gpio</Value>
+      <Value>../lib/scif</Value>
+      <Value>../lib/usb</Value>
+      <Value>../src</Value>
+      <Value>../src/config</Value>
+    </ListValues>
+  </avr32gcc.preprocessingassembler.general.IncludePaths>
+  <avr32gcc.preprocessingassembler.debugging.DebugLevel>Default (-Wa,-g)</avr32gcc.preprocessingassembler.debugging.DebugLevel>
+</Avr32Gcc>
+    </ToolchainSettings>
+  </PropertyGroup>
+  <ItemGroup>
+    <Folder Include="lib\adcifa\" />
+    <Folder Include="lib\flashc\" />
+    <Folder Include="lib\pdca\" />
+    <Folder Include="lib\wdt\" />
+    <Folder Include="src\" />
+    <Folder Include="lib\" />
+    <Folder Include="lib\gpio\" />
+    <Folder Include="lib\intc\" />
+    <Folder Include="lib\pm\" />
+    <Folder Include="lib\scif\" />
+    <Folder Include="lib\usart\" />
+    <Folder Include="lib\usbc\" />
+    <Folder Include="lib\linker\" />
+    <Folder Include="lib\startup\" />
+    <Folder Include="lib\clock\" />
+    <Folder Include="lib\sleepmgr\" />
+    <Folder Include="lib\usb\" />
+    <Folder Include="lib\usb\class\" />
+    <Folder Include="lib\usb\class\cdc\" />
+    <Folder Include="lib\usb\class\cdc\device\" />
+    <Folder Include="lib\usb\udc\" />
+    <Folder Include="lib\interrupt\" />
+    <Folder Include="src\boards\" />
+    <Folder Include="src\config\" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="atmel_devices_cdc.inf">
+      <SubType>compile</SubType>
+    </None>
+    <None Include="lib\linker\link_uc3c0512c.lds">
+      <SubType>compile</SubType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="lib\clock\sysclk.h">
+      <SubType>compile</SubType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="src\main.h">
+      <SubType>compile</SubType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="lib\clock\osc.h">
+      <SubType>compile</SubType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="src\ui.h">
+      <SubType>compile</SubType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="lib\usb\udc\udc_desc.h">
+      <SubType>compile</SubType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="lib\scif\scif_uc3c.h">
+      <SubType>compile</SubType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="src\config\conf_clock.h">
+      <SubType>compile</SubType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="lib\usbc\usbc_device.h">
+      <SubType>compile</SubType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="lib\clock\pll.h">
+      <SubType>compile</SubType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="lib\usb\class\cdc\device\udi_cdc.h">
+      <SubType>compile</SubType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="lib\usb\udc\udd.h">
+      <SubType>compile</SubType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="lib\usbc\usbc_otg.h">
+      <SubType>compile</SubType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="lib\usb\udc\udi.h">
+      <SubType>compile</SubType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="lib\usb\usb_atmel.h">
+      <SubType>compile</SubType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="lib\usb\udc\udc.h">
+      <SubType>compile</SubType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="lib\preprocessor.h">
+      <SubType>compile</SubType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="lib\usb\class\cdc\usb_protocol_cdc.h">
+      <SubType>compile</SubType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="lib\pm\sleep.h">
+      <SubType>compile</SubType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="src\config\conf_usb.h">
+      <SubType>compile</SubType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="lib\startup\trampoline_uc3.h">
+      <SubType>compile</SubType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="lib\clock\genclk.h">
+      <SubType>compile</SubType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="lib\compiler.h">
+      <SubType>compile</SubType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="lib\sleepmgr\sleepmgr.h">
+      <SubType>compile</SubType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="lib\intc\intc.h">
+      <SubType>compile</SubType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="lib\interrupt.h">
+      <SubType>compile</SubType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="lib\gpio\gpio.h">
+      <SubType>compile</SubType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="lib\pm\pm_uc3c.h">
+      <SubType>compile</SubType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="src\config\conf_sleepmgr.h">
+      <SubType>compile</SubType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="src\config\conf_board.h">
+      <SubType>compile</SubType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="lib\pm\power_clocks_lib.h">
+      <SubType>compile</SubType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="lib\usb\usb_protocol.h">
+      <SubType>compile</SubType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="lib\usart\usart.h">
+      <SubType>compile</SubType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="lib\flashc\flashc.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="lib\flashc\flashc.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="lib\wdt\wdt.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="lib\wdt\wdt4.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\boards\ioboard.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\boards\stk600.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\coord.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\coord.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\dfu.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\dfu.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\failsafe.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\failsafe.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\gp.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\gp.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\hmc5883.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\hmc5883.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\i2cdevice.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\i2cdevice.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\mpu6050.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\mpu6050.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\ms5611.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\ms5611.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\pwm.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\pwm.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\twim_pdca.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\twim_pdca.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\ubx_gps.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\ubx_gps.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\venus638_gps.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\venus638_gps.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <None Include="lib\asf.h">
+      <SubType>compile</SubType>
+    </None>
+    <Compile Include="lib\adcifa\adcifa.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="lib\adcifa\adcifa.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="lib\board.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\cobsr.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\cobsr.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\comms.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\comms.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\config\udi_cdc_conf.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\crc8.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\crc8.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="lib\gpio\gpio.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="lib\intc\exception.S">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="lib\intc\intc.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="lib\pm\pm_uc3c.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="lib\pm\power_clocks_lib.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="lib\scif\scif_uc3c.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="lib\usart\usart.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="lib\usbc\usbc_device.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="lib\startup\startup_uc3.S">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="lib\startup\trampoline_uc3.S">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="lib\clock\osc.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="lib\clock\pll.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="lib\clock\sysclk.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="lib\sleepmgr\sleepmgr.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\ui.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="lib\usb\class\cdc\device\udi_cdc.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="lib\usb\class\cdc\device\udi_cdc_desc.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="lib\usb\udc\udc.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\main.c">
+      <SubType>compile</SubType>
+    </Compile>
+  </ItemGroup>
+  <Import Project="$(AVRSTUDIO_EXE_PATH)\\Vs\\Compiler.targets" />
+</Project>
