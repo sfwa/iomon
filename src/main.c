@@ -52,8 +52,6 @@
 #include "ms5611.h"
 #include "hmc5883.h"
 #include "mpu6050.h"
-#include "failsafe.h"
-#include "dfu.h"
 
 static volatile bool main_b_cdc_enable = false;
 
@@ -80,7 +78,6 @@ int main(void) {
 #endif
 
     /* Initialize the core iomon systems */
-    failsafe_init();
     comms_init();
 
 	wdt_clear();
@@ -128,9 +125,6 @@ int main(void) {
 
         /* PWM output procedure */
         pwm_tick();
-
-        /* Failsafe update */
-        failsafe_tick();
 
         /* Work out CPU usage for the last frame */
         uint32_t start_t = frame * counts_per_ms;

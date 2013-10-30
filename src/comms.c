@@ -29,8 +29,7 @@ SOFTWARE.
 #include "crc8.h"
 #include "comms.h"
 #include "venus638_gps.h"
-#include "failsafe.h"
-#include "dfu.h"
+#include "pwm.h"
 
 #ifndef CONTINUE_ON_ASSERT
 #define CommsAssert(x) Assert(x)
@@ -46,8 +45,9 @@ struct sensor_packet_t {
     /* Base fields */
     uint8_t crc;
     uint16_t tick;
-    uint32_t status;
     uint8_t sensor_update_flags;
+    uint8_t cpu_load;
+    uint16_t status;
 
     /* Sensor fields */
     struct {
@@ -65,8 +65,7 @@ struct sensor_packet_t {
     int16_t i; /* 16-bit ADC reading -- current sensor */
     int16_t v; /* 16-bit ADC reading -- voltage sensor */
     int16_t range; /* 16-bit ADC reading -- rangefinder */
-    uint8_t gpin_state_pwm_id; /* & 0x0f for pin state, & 0xf0 for PWM read */
-    uint16_t pwm_value; /* Latest PWM value for the indicated channel */
+    uint8_t gpin_state; /* & 0x0f for pin state, & 0xf0 for PWM read */
 
     /* Magnetometer */
     struct {
@@ -86,14 +85,11 @@ struct sensor_packet_t {
 
     struct {
         uint8_t fix_mode_num_satellites; /* 2x 4-bit values */
-        uint16_t pdop;
+        uint8_t pdop;
     } __attribute__ ((packed)) gps_info;
 } __attribute__ ((packed));
 
-#define SENSOR_PACKET_LEN 37u
-#define MAG_DATA_LEN 6u
-#define GPS_POS_LEN 18u
-#define GPS_INFO_LEN 3u
+#define SENSOR_PACKET_LEN 60u
 
 #define SENSOR_STATUS_TXERR_MASK   0x00000001u
 #define SENSOR_STATUS_RXERR_MASK   0x00000002u
@@ -105,46 +101,50 @@ struct sensor_packet_t {
 #define SENSOR_STATUS_ACCEL_GYRO_OFFSET 8u
 #define SENSOR_STATUS_MAGNETOMETER_MASK 0x00003800u
 #define SENSOR_STATUS_MAGNETOMETER_OFFSET 11u
-#define SENSOR_STATUS_CPULOAD_MASK 0x0001C000u
-#define SENSOR_STATUS_CPULOAD_OFFSET 14u
-#define SENSOR_STATUS_TYPE_MASK 0xFF000000u
-#define SENSOR_STATUS_TYPE 0x00u
-#define SENSOR_STATUS_UNUSED_MASK  0x00FE0000u
+#define SENSOR_STATUS_UNUSED_MASK  0xC000u
 
-#define CMD_KEY_LEN 64u
+#define UPDATED_ACCEL 0x01u
+#define UPDATED_GYRO 0x02u
+#define UPDATED_BAROMETER 0x04u
+#define UPDATED_MAG 0x08u
+#define UPDATED_GPS_POS 0x10u
+#define UPDATED_GPS_INFO 0x20u
+#define UPDATED_ADC_GPIO 0x40u
+
+#define CMD_KEY_LEN 8u
 
 struct control_packet_t {
     uint8_t crc;
-    uint16_t tick;
+    uint8_t tick;
     uint8_t msg_type;
-    uint16_t pwm[4];
     uint8_t gpout;
-} __attribute__ ((packed));
-
-struct transfer_packet_t {
-    uint8_t crc;
-    uint16_t tick;
-    uint8_t msg_type;
-    uint8_t payload_len;
-    uint8_t payload[248];
+    uint16_t pwm[4];
 } __attribute__ ((packed));
 
 struct cmd_packet_t {
     uint8_t crc;
-    uint16_t tick;
+    uint8_t tick;
     uint8_t msg_type;
-    uint8_t key[CMD_KEY_LEN];
+    uint8_t cmd[CMD_KEY_LEN];
+    uint8_t val;
 } __attribute__ ((packed));
+
+struct firmware_packet_t {
+    uint8_t crc;
+    uint8_t tick;
+    uint8_t msg_type;
+    uint16_t addr;
+    uint32_t data;
+};
 
 enum msg_type_t {
     MSG_TYPE_NONE = 0,
     MSG_TYPE_CONTROL = 1,
-    MSG_TYPE_TRANSFER_MB = 2,
+    MSG_TYPE_FIRMWARE = 2,
     MSG_TYPE_CMD = 3
 };
 
-static uint8_t cmd_key_dfu[] = "DFU_DFU_DFU_DFU_";
-static uint8_t cmd_key_packet_rate_div_set[] = "PACKET_RATE_DIV_SET";
+static uint8_t cmd_key_packet_rate_div_set[] = "PKT_RATE";
 static uint8_t cmd_packet_rate_div = 1u;
 
 #define MSG_TRANSFER_OVERHEAD 5u
@@ -158,18 +158,10 @@ static uint8_t cmd_packet_rate_div = 1u;
 #define INBUF_LEN 256u
 #define RX_BUF_LEN 256u
 
-#define UPDATED_ACCEL 0x01u
-#define UPDATED_GYRO 0x02u
-#define UPDATED_BAROMETER 0x04u
-#define UPDATED_MAG 0x08u
-#define UPDATED_GPS_POS 0x10u
-#define UPDATED_GPS_INFO 0x20u
-#define UPDATED_ADC_GPIO 0x40u
-
-/* Wait 5 seconds after receipt of last message before killing CPU, then
-   hold reset high for 10 seconds. */
-#define CPU_TIMEOUT_TICKS 5000u
-#define CPU_RESET_TICKS 10000u
+/* Wait 10ms after receipt of last message before killing CPU, then
+   hold reset high for 0.2s. */
+#define CPU_TIMEOUT_TICKS 10u
+#define CPU_RESET_TICKS 200u
 
 enum rx_buf_parse_state_t {
     RX_NO_MSG = 0,
@@ -211,13 +203,14 @@ inline static int16_t clamp_s16(int32_t v) {
 }
 
 void comms_set_cpu_status(uint32_t cycles_used) {
-    packet.status &= ~SENSOR_STATUS_CPULOAD_MASK;
+    CommsAssert(cycles_used < 1000000);
 
-    uint32_t proportion_used = (6000u * cycles_used) / sysclk_get_cpu_hz();
-    if (proportion_used > 7u) {
-        proportion_used = 7u;
+    uint32_t cycles_per_tick = sysclk_get_cpu_hz() / 1000,
+             proportion_used = (255u * cycles_used) / cycles_per_tick;
+    if (proportion_used > 255u) {
+        proportion_used = 255u;
     }
-    packet.status |= (proportion_used & 0x7u) << SENSOR_STATUS_CPULOAD_OFFSET;
+    packet.cpu_load = proportion_used;
 }
 
 void comms_set_gps_state(uint8_t status) {
@@ -311,16 +304,8 @@ void comms_set_gpin_state(uint8_t v) {
 
     packet.sensor_update_flags |= UPDATED_ADC_GPIO;
 
-    packet.gpin_state_pwm_id =
-        (packet.gpin_state_pwm_id & 0xf0u) | (v & 0x0fu);
-}
-
-void comms_set_pwm_value(uint8_t pwm_id, uint16_t value) {
-    CommsAssert(pwm_id < 4u);
-
-    packet.gpin_state_pwm_id =
-        (packet.gpin_state_pwm_id & 0x0fu) | ((pwm_id & 0x0fu) << 4u);
-    packet.pwm_value = value;
+    packet.gpin_state =
+        (packet.gpin_state & 0xf0u) | (v & 0x0fu);
 }
 
 void comms_set_gps_pv(int32_t lat, int32_t lng, int32_t alt, int32_t vx,
@@ -341,7 +326,12 @@ void comms_set_gps_info(uint8_t fix_mode, uint16_t pdop,
 
     packet.sensor_update_flags |= UPDATED_GPS_INFO;
     packet.gps_info.fix_mode_num_satellites = (fix_mode << 4u) + num_satellites;
-    packet.gps_info.pdop = pdop;
+
+    if (pdop > 0x00ffu) {
+        packet.gps_info.pdop = 0x00ffu;
+    } else {
+        packet.gps_info.pdop = (uint8_t)pdop;
+    }
 }
 
 uint16_t comms_get_pwm(uint8_t pwm_id) {
@@ -422,34 +412,20 @@ uint16_t comms_tick(void) {
         sensors_updated |= packet.sensor_update_flags;
     }
 
-    /* Work out actual packet length */
-    uint8_t packet_len = SENSOR_PACKET_LEN;
-    if (packet.sensor_update_flags & UPDATED_GPS_INFO) {
-        packet_len += MAG_DATA_LEN + GPS_POS_LEN + GPS_INFO_LEN;
-    } else if (packet.sensor_update_flags & UPDATED_GPS_POS) {
-        packet_len += MAG_DATA_LEN + GPS_POS_LEN;
-    } else if (packet.sensor_update_flags & UPDATED_MAG) {
-        packet_len += MAG_DATA_LEN;
-    } else {
-        /* No packet length modifiers */
-    }
-
-    CommsAssert(packet_len <= OUTBUF_LEN - 2u);
-
     /* Calculate CRC for the first byte of the packet, based on the rest of
        the packet */
     const uint8_t const* packet_data_ptr = ((uint8_t *)&packet) + sizeof(uint8_t);
-    packet.crc = crc8(crc_lookup, packet_data_ptr, packet_len - 1, 0);
+    packet.crc = crc8(crc_lookup, packet_data_ptr, SENSOR_PACKET_LEN - 1, 0);
 
     /* Encode the whole packet using COBS-R */
     struct cobsr_encode_result encode_result;
     encode_result = cobsr_encode(&(outbuf[1]), OUTBUF_LEN,
-        (const uint8_t *)&packet, packet_len);
+        (const uint8_t *)&packet, SENSOR_PACKET_LEN);
 
     /* Check for errors */
     CommsAssert(outbuf[0] == 0);
     CommsAssert(encode_result.status == COBSR_ENCODE_OK);
-    CommsAssert(encode_result.out_len <= packet_len + 1u);
+    CommsAssert(encode_result.out_len <= SENSOR_PACKET_LEN + 1u);
 
     outbuf[1 + encode_result.out_len] = 0; /* Append a null byte */
 
@@ -468,7 +444,6 @@ uint16_t comms_tick(void) {
                 udi_cdc_read_buf(rx_buf, RX_BUF_LEN));
 
             last_cpu_packet_tick = packet.tick;
-            failsafe_got_cpu_packet();
         }
     } else {
         /* Receive data from primary UART */
@@ -515,7 +490,6 @@ uint16_t comms_tick(void) {
         if (bytes_avail) {
             comms_process_rx_buf(bytes_avail);
             last_cpu_packet_tick = packet.tick;
-            failsafe_got_cpu_packet();
         }
     }
 
@@ -547,6 +521,9 @@ uint16_t comms_tick(void) {
             packet.tick - last_cpu_packet_tick > CPU_TIMEOUT_TICKS) {
         cpu_reset_countdown_tick = CPU_RESET_TICKS;
         gpio_local_set_gpio_pin(CPU_RESET_PIN);
+
+        /* Turn PWM off until we get another CPU packet */
+        pwm_disable();
     } else if (cpu_reset_countdown_tick == 1u) {
         cpu_reset_countdown_tick = 0;
         last_cpu_packet_tick = packet.tick;
@@ -616,37 +593,18 @@ static void comms_process_rx_buf(uint32_t bytes_avail) {
                     if (msgbuf[3] == MSG_TYPE_CONTROL &&
                             dresult.out_len == sizeof(control)) {
                         memcpy(&control, msgbuf, sizeof(control));
-                    } else if (msgbuf[3] == MSG_TYPE_TRANSFER_MB &&
-                            dresult.out_len == msgbuf[4] - MSG_TRANSFER_OVERHEAD) {
-                        /* Make sure the payload length corresponds to the
-                           total message length excluding overheads */
-                        failsafe_set_boundary((int32_t*)(&msgbuf[5]),
-							msgbuf[4] >> 3u);
                     } else if (msgbuf[3] == MSG_TYPE_CMD &&
                             dresult.out_len == sizeof(cmd)) {
                         memcpy(&cmd, msgbuf, sizeof(cmd));
 
                         /* Process command packet */
-                        if (!memcmp(cmd_key_dfu, cmd.key,
-								sizeof(cmd_key_dfu) - 1u)) {
-                            /* Got a DFU packet -- reset into bootloader */
-                            dfu_enable();
-
-                            cpu_irq_disable();
-                            wdt_opt_t opt = {
-                               .us_timeout_period = 1000000
-                            };
-                            wdt_disable();
-                            wdt_clear();
-                            wdt_enable(&opt);
-                            while (1);
-                        } else if (!memcmp(cmd_key_packet_rate_div_set,
-								cmd.key,
+                        if (!memcmp(cmd_key_packet_rate_div_set,
+								cmd.cmd,
 								sizeof(cmd_key_packet_rate_div_set) - 1u)) {
                             /* Got a packet rate set packet -- set global
                                rate divisor to the new value, assuming it's
                                not 0. */
-                            cmd_packet_rate_div = cmd.key[CMD_KEY_LEN - 1u];
+                            cmd_packet_rate_div = cmd.val;
                             if (cmd_packet_rate_div == 0) {
                                 cmd_packet_rate_div = 1u;
                             }

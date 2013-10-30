@@ -18,8 +18,6 @@ peripheral device or support function:
 * `comms.c` is the primary serial/USB driver code for sensor monitor output
   and control input;
 * `crc8.c` implements 8-bit, lookup-table-based CRC calculation;
-* `failsafe.c` provides options for flight termination in response to CPU
-  timeouts or mission boundary crossings;
 * `gp.c` implements ADC and GPIO interfaces;
 * `hmc5883.c` implements an I2C driver for the Honeywell HMC5883L 3-axis
   magnetometer;

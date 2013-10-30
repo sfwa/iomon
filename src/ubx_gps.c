@@ -25,7 +25,6 @@ SOFTWARE.
 #include <string.h>
 #include "comms.h"
 #include "ubx_gps.h"
-#include "failsafe.h"
 
 static void ubx_process_latest_msg(void);
 
@@ -88,7 +87,6 @@ struct ubx_nav_posllh_t {
 /* Timeout values */
 #define UBX_POWER_DELAY 500u
 #define UBX_TIMEOUT 1500u
-#define UBX_NAV_INFO_FREQUENCY 500u
 
 /* GPS class and message IDs */
 #define UBX_MSG_NAV_SOL "\x01\x06"
@@ -334,11 +332,7 @@ static void ubx_process_latest_msg(void) {
             ubx_last_fix_mode = GPS_FIX_NONE;
         }
 
-        if (ubx_state_timer >= UBX_NAV_INFO_FREQUENCY) {
-            ubx_state_timer = 0;
-            comms_set_gps_info(ubx_last_fix_mode, swap16(msg.pdop),
-                msg.num_sv);
-        }
+        comms_set_gps_info(ubx_last_fix_mode, swap16(msg.pdop), msg.num_sv);
 
         if (ubx_last_fix_mode != GPS_FIX_NONE) {
             /* FIXME */
@@ -346,13 +340,8 @@ static void ubx_process_latest_msg(void) {
                 swap32(msg.ecef_pos[2]), swap32(msg.ecef_v[0]),
                 swap32(msg.ecef_v[1]), swap32(msg.ecef_v[2]));
         }
-    } else if (Ubx_got_msg(UBX_MSG_NAV_POSLLH) &&
-            ubx_last_fix_mode != GPS_FIX_NONE) {
-        /* If we're currently fixed, use the LLH position messages to
-           supply the failsafe boundary checker with data */
-        struct ubx_nav_posllh_t msg;
-        memcpy(&msg, ubx_msgbuf, sizeof(msg));
-        failsafe_set_latlng(swap32(msg.lat), swap32(msg.lon));
+
+        ubx_state_timer = 0;
     } else {
         /* Some other message type; ignore */
     }

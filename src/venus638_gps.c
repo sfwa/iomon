@@ -26,7 +26,6 @@ SOFTWARE.
 #include <math.h>
 #include "comms.h"
 #include "venus638_gps.h"
-#include "failsafe.h"
 
 #define  PI_F 3.14159265358979f
 
@@ -75,7 +74,6 @@ struct venus638_nav_data_t {
 /* Timeout values */
 #define VENUS638_POWER_DELAY 1000u
 #define VENUS638_TIMEOUT 2500u
-#define VENUS638_NAV_INFO_FREQUENCY 500u
 
 /* GPS message IDs */
 #define VENUS638_MSG_NAV_DATA 0xa8u
@@ -314,11 +312,8 @@ static void venus638_process_latest_msg(void) {
             (int32_t)vn, (int32_t)ve, (int32_t)(-vu));*/
         comms_set_gps_pv(msg.latitude, msg.longitude, msg.msl_altitude,
             msg.ecef_v[0], msg.ecef_v[1], msg.ecef_v[2]);
-        failsafe_set_latlng(msg.latitude, msg.longitude);
     }
 
-    if (venus638_state_timer >= VENUS638_NAV_INFO_FREQUENCY) {
-        venus638_state_timer = 0;
-        comms_set_gps_info(msg.fix_mode, msg.pdop, msg.num_satellites);
-    }
+    comms_set_gps_info(msg.fix_mode, msg.pdop, msg.num_satellites);
+    venus638_state_timer = 0;
 }

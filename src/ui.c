@@ -27,7 +27,7 @@ SOFTWARE.
 * - Led 0 is on when USB line is in IDLE mode, and blinks while COM open.
 * - Led 1 is on until all peripherals are initialized, then stays off
 * - Led 2 is on during PWM disable conditions (e.g. asserts, or no CPU)
-* - Led 3 is on during failsafe conditions
+* - Led 3 is on during assert conditions
 */
 
 void ui_init(void) {

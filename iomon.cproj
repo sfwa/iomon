@@ -465,24 +465,6 @@
     <Compile Include="src\boards\stk600.h">
       <SubType>compile</SubType>
     </Compile>
-    <Compile Include="src\coord.c">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="src\coord.h">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="src\dfu.c">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="src\dfu.h">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="src\failsafe.c">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="src\failsafe.h">
-      <SubType>compile</SubType>
-    </Compile>
     <Compile Include="src\gp.c">
       <SubType>compile</SubType>
     </Compile>
