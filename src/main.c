@@ -47,8 +47,7 @@
 #include "comms.h"
 #include "gp.h"
 #include "pwm.h"
-#include "venus638_gps.h"
-/* #include "ubx_gps.h" */
+#include "ubx_gps.h"
 #include "ms5611.h"
 #include "hmc5883.h"
 #include "mpu6050.h"

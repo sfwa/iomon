@@ -28,7 +28,6 @@ SOFTWARE.
 #include "cobsr.h"
 #include "crc8.h"
 #include "comms.h"
-#include "venus638_gps.h"
 #include "pwm.h"
 
 #ifndef CONTINUE_ON_ASSERT

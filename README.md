@@ -35,8 +35,6 @@ peripheral device or support function:
 * `twim_pdca.c` is used by `i2cdevice.c` and the various I2C drivers to handle
   I2C "transactions" (write/read sequences) and DMA-based I2C commands;
 * `ui.c` implements flashing lights in response to various conditions;
-* `venus638_gps.c` is a USART-based driver for the Venus638 binary message
-  protocol.
 * `ubx_gps.c` is a USART-based driver for the u-blox UBX binary protocol.
 
 
@@ -80,16 +78,8 @@ Aside from those files, USB configuration data is stored in
 configurations should not need to be changed, except perhaps for assigning
 unique USB device serial numbers to each board.
 
-Both the Venus638 and UBX drivers require that the GPS modules have been
-configured appropriately, and the configuration has been saved to Flash. The
-required settings are:
-
-### Venus638
-
-* Disable NMEA output (`\x09\x02\x01`)
-* Set position rate to 10Hz (`\x0e\x0a\x01`)
-* Set nav message interval to one message per position update (`\x11\x01\x01`)
-* Switch to 115200 baud (`\x05\x00\x05\x01`)
+The UBX driver requires that the GPS module has been configured appropriately,
+and the configuration has been saved to Flash. The required settings are:
 
 ### UBX
 
@@ -119,9 +109,6 @@ USB DFU bootloader might be added later depending on how frequently we need
 to re-flash in the field.
 
 GPS configuration requires u-blox [u-center](http://www.u-blox.com/en/evaluation-tools-a-software/u-center/u-center.html)
-and/or the [Venus GPS configuration software](http://dlnmh9ip6v2uc.cloudfront.net/datasheets/Sensors/GPS/Venus/638/viewer/GPS%20Viewer%20-%20Customer%20Release_110613.zip).
-
-The Venus638 also requires custom [high-dynamic-range firmware](http://dlnmh9ip6v2uc.cloudfront.net/datasheets/Sensors/GPS/Venus/638/firmware/STI_01.06.04-01.10.24_npse_HiDyn_AGPS_WAAS_LOG_9600_20111021.zip).
 
 
 ## Hardware installation

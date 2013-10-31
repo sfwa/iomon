@@ -513,12 +513,6 @@
     <Compile Include="src\ubx_gps.h">
       <SubType>compile</SubType>
     </Compile>
-    <Compile Include="src\venus638_gps.c">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="src\venus638_gps.h">
-      <SubType>compile</SubType>
-    </Compile>
     <None Include="lib\asf.h">
       <SubType>compile</SubType>
     </None>
