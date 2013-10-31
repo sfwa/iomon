@@ -337,9 +337,12 @@ static void ubx_process_latest_msg(void) {
         memcpy(&msg, ubx_msgbuf, sizeof(msg));
 
         /* Translate fix modes */
-        if (msg.fixType == 0x02) {
+        if (msg.flags & 0x01u == 0) {
+            /* gnssFixOK flag not set -- ignore fix (GPS.G7-SW-12001-B p. 2)*/
+            ubx_last_fix_mode = GPS_FIX_NONE;
+        } else if (msg.fixType == 0x02u) {
             ubx_last_fix_mode = GPS_FIX_2D;
-        } else if (msg.fixType == 0x03 || msg.fixType == 0x04) {
+        } else if (msg.fixType == 0x03u || msg.fixType == 0x04u) {
             ubx_last_fix_mode = GPS_FIX_3D;
         } else {
             ubx_last_fix_mode = GPS_FIX_NONE;
@@ -347,7 +350,7 @@ static void ubx_process_latest_msg(void) {
 
         uint32_t pos_err = swap32(msg.hAcc);
         /* Convert to metres, rounding up */
-        pos_err = (pos_err + 500) / 1000;
+        pos_err = (pos_err + 500u) / 1000u;
         if (pos_err > 0xffu) {
             pos_err = 0xffu;
         }
