@@ -29,6 +29,7 @@ SOFTWARE.
 #include "crc8.h"
 #include "comms.h"
 #include "pwm.h"
+#include "ubx_gps.h"
 
 #ifndef CONTINUE_ON_ASSERT
 #define CommsAssert(x) Assert(x)
@@ -78,13 +79,13 @@ struct sensor_packet_t {
             int32_t alt; /* alt above msl in  cm */
         } position;
         struct {
-            int16_t x, y, z; /* NED in cm/s */
+            int16_t n, e, d; /* NED in cm/s */
         } __attribute__ ((packed)) velocity;
     } __attribute__ ((packed)) gps;
 
     struct {
         uint8_t fix_mode_num_satellites; /* 2x 4-bit values */
-        uint8_t pdop;
+        uint8_t pos_err; /* error estimate in metres */
     } __attribute__ ((packed)) gps_info;
 } __attribute__ ((packed));
 
@@ -307,30 +308,25 @@ void comms_set_gpin_state(uint8_t v) {
         (packet.gpin_state & 0xf0u) | (v & 0x0fu);
 }
 
-void comms_set_gps_pv(int32_t lat, int32_t lng, int32_t alt, int32_t vx,
-        int32_t vy, int32_t vz) {
+void comms_set_gps_pv(int32_t lat, int32_t lng, int32_t alt, int32_t vn,
+        int32_t ve, int32_t vd) {
     packet.sensor_update_flags |= UPDATED_GPS_POS;
     packet.gps.position.lat = lat;
     packet.gps.position.lng = lng;
     packet.gps.position.alt = alt;
-    packet.gps.velocity.x = clamp_s16(vx);
-    packet.gps.velocity.y = clamp_s16(vy);
-    packet.gps.velocity.z = clamp_s16(vz);
+    packet.gps.velocity.n = clamp_s16(vn);
+    packet.gps.velocity.e = clamp_s16(ve);
+    packet.gps.velocity.d = clamp_s16(vd);
 }
 
-void comms_set_gps_info(uint8_t fix_mode, uint16_t pdop,
+void comms_set_gps_info(uint8_t fix_mode, uint8_t pos_err,
         uint8_t num_satellites) {
     CommsAssert(fix_mode <= GPS_FIX_3D_DGPS);
     CommsAssert(num_satellites < 16u);
 
     packet.sensor_update_flags |= UPDATED_GPS_INFO;
     packet.gps_info.fix_mode_num_satellites = (fix_mode << 4u) + num_satellites;
-
-    if (pdop > 0x00ffu) {
-        packet.gps_info.pdop = 0x00ffu;
-    } else {
-        packet.gps_info.pdop = (uint8_t)pdop;
-    }
+    packet.gps_info.pos_err = pos_err;
 }
 
 uint16_t comms_get_pwm(uint8_t pwm_id) {

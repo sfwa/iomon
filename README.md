@@ -83,7 +83,7 @@ and the configuration has been saved to Flash. The required settings are:
 
 ### UBX
 
-* `CFG MSG`: Enable NAV SOL and NAV LLH
+* `CFG MSG`: Enable NAV PVT
 * `CFG NAV5`: Set dynamics mode to `airborne <4g`
 * `CFG PRT`: Set UART1 to UBX in, UBX out, 57600 baud (or 115200 if supported)
 * `CFG RATE`: Set measurement period to 250ms (or 100ms if supported)

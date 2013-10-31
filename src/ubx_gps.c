@@ -45,39 +45,54 @@ enum ubx_msg_parser_state_t {
     UBX_PARSER_DONE_MSG
 };
 
-struct ubx_nav_sol_t {
-    /* Actual TOW in seconds is itow * 1e-3 + ftow * 1e-9 */
-    uint32_t itow; /* GPS time of week in ms */
-    int32_t ftow; /* GPS time of week fractional in ns (+/- 500000) */
-    int16_t week; /* GPS week number */
-    /* 0x00 = no fix, 0x01 = dead reckoning, 0x02 = 2D, 0x03 = 3D,
-       0x04 = GPS + dead reckoning, 0x05 = time only */
-    uint8_t gps_fix;
-    /* 0LSB = GPS fix OK, 1LSB = differential, 2LSB = valid week, 3LSB = valid
-       time of week */
-    uint8_t flags;
-    int32_t ecef_pos[3]; /* X, Y, Z in cm */
-    uint32_t p_acc; /* position accuracy, in cm error */
-    int32_t ecef_v[3]; /* X, Y, Z in cm/s */
-    uint32_t s_acc; /* speed accuracy, in cm/s error */
-    uint16_t pdop; /* PDOP, 1LSB = 0.01 */
+struct ubx_nav_pvt_t {
+    uint32_t iTOW; /* GPS time of week in ms */
+    uint16_t year; /* UTC year */
+    uint8_t month; /* UTC month (1-12) */
+    uint8_t day; /* UTC day (1-31) */
+    uint8_t hour; /* UTC hour (0-23) */
+    uint8_t min; /* UTC minute (0-59) */
+    uint8_t sec; /* UTC second (0-60, inc leap second) */
+    uint8_t valid; /* Validity flags: 0x01 = valid UTC date,
+                      0x02 = valid UTC time,
+                      0x04 = fully resolved (no seconds uncertainty) */
+    uint32_t tAcc; /* Time accuracy estimate (ns) */
+    int32_t nano; /* Fraction of a second, -1e9 to 1e9 */
+    uint8_t fixType; /* Fix type: 0x00 = no fix, 0x01 = dead reckoning,
+                        0x02 = 2D, 0x03 = 3D, 0x04 = GPS + dead reckoning,
+                        0x05 = time only */
+    uint8_t flags; /* Fix status flags:
+                      flags & 0x01 = GPS fix OK,
+                      flags & 0x02 = differential fix,
+                      (flags & 0x1c) >> 2 = power save mode --
+                        * 0 = n/a
+                        * 1 = enabled
+                        * 2 = acquisition
+                        * 3 = tracking
+                        * 4 = power optimised tracking
+                        * 5 = inactive */
     uint8_t reserved1;
-    uint8_t num_sv; /* number of sats tracked */
-    uint32_t reserved2;
-} __attribute__ ((packed));
-
-struct ubx_nav_posllh_t {
-    uint32_t itow; /* GPS time of week in ms */
+    uint8_t numSV; /* Number of SVs tracked */
     int32_t lon; /* in 1e-7 deg */
     int32_t lat; /* in 1e-7 deg */
     int32_t height; /* in mm above ellipsoid */
-    int32_t h_msl; /* in mm above mean sea level */
-    uint32_t h_acc; /* horizontal accuracy, in mm error */
-    uint32_t v_acc; /* vertical accuracy, in mm error */
+    int32_t hMSL; /* in mm above mean sea level */
+    uint32_t hAcc; /* horizontal accuracy, in mm error */
+    uint32_t vAcc; /* vertical accuracy, in mm error */
+    int32_t velN; /* NED north velocity, mm/s */
+    int32_t velE; /* NED east velocity, mm/s */
+    int32_t velD; /* NED down velocity, mm/s */
+    int32_t gSpeed; /* Ground speed, mm/s */
+    int32_t heading; /* Heading of motion, in 1e-5 deg */
+    uint32_t sAcc; /* Speed accuracy estimate, mm/s */
+    uint32_t headingAcc; /* Heading accuracy estimate, 1e-5 deg */
+    uint16_t pDOP; /* Position dilution of precision, 1 LSB = 0.01 */
+    uint16_t reserved2;
+    uint32_t reserved3;
 } __attribute__ ((packed));
 
 #define UBX_INBUF_SIZE 128u
-#define UBX_MSGBUF_SIZE 64u
+#define UBX_MSGBUF_SIZE 96u
 /* 2 prefix u8, 1 message class u8, 1 message ID u8, 1 paylod length u16,
    one checksum u16 */
 #define UBX_PREFIX_LEN 6u
@@ -89,8 +104,7 @@ struct ubx_nav_posllh_t {
 #define UBX_TIMEOUT 1500u
 
 /* GPS class and message IDs */
-#define UBX_MSG_NAV_SOL "\x01\x06"
-#define UBX_MSG_NAV_POSLLH "\x01\x02"
+#define UBX_MSG_NAV_PVT "\x01\x07"
 
 /* Sanity checks */
 #define Ubx_state_is_valid(x) \
@@ -317,28 +331,33 @@ void ubx_tick(void) {
 
 static void ubx_process_latest_msg(void) {
     /* UBX_NAVIGATING holds until more than UBX_TIMEOUT ticks elapse
-       between received packets. Approximately every
-       UBX_NAV_INFO_FREQUENCY ticks, the GPS tracking info is included. */
-    if (Ubx_got_msg(UBX_MSG_NAV_SOL)) {
-        struct ubx_nav_sol_t msg;
+       between received packets. */
+    if (Ubx_got_msg(UBX_MSG_NAV_PVT)) {
+        struct ubx_nav_pvt_t msg;
         memcpy(&msg, ubx_msgbuf, sizeof(msg));
 
         /* Translate fix modes */
-        if (msg.gps_fix == 0x02) {
+        if (msg.fixType == 0x02) {
             ubx_last_fix_mode = GPS_FIX_2D;
-        } else if (msg.gps_fix == 0x03 || msg.gps_fix == 0x04) {
+        } else if (msg.fixType == 0x03 || msg.fixType == 0x04) {
             ubx_last_fix_mode = GPS_FIX_3D;
         } else {
             ubx_last_fix_mode = GPS_FIX_NONE;
         }
 
-        comms_set_gps_info(ubx_last_fix_mode, swap16(msg.pdop), msg.num_sv);
+        uint32_t pos_err = swap32(msg.hAcc);
+        /* Convert to metres, rounding up */
+        pos_err = (pos_err + 500) / 1000;
+        if (pos_err > 0xffu) {
+            pos_err = 0xffu;
+        }
+        comms_set_gps_info(ubx_last_fix_mode, (uint8_t)(pos_err & 0xffu),
+                           msg.numSV);
 
         if (ubx_last_fix_mode != GPS_FIX_NONE) {
-            /* FIXME */
-            comms_set_gps_pv(swap32(msg.ecef_pos[0]), swap32(msg.ecef_pos[1]),
-                swap32(msg.ecef_pos[2]), swap32(msg.ecef_v[0]),
-                swap32(msg.ecef_v[1]), swap32(msg.ecef_v[2]));
+            comms_set_gps_pv(swap32(msg.lat), swap32(msg.lon),
+                swap32(msg.height), swap32(msg.velN),
+                swap32(msg.velE), swap32(msg.velD));
         }
 
         ubx_state_timer = 0;

@@ -54,9 +54,9 @@ void comms_set_pitot(uint16_t v);
 void comms_set_range(uint16_t v);
 void comms_set_iv(uint16_t i, uint16_t v);
 void comms_set_gpin_state(uint8_t v);
-void comms_set_gps_pv(int32_t lat, int32_t lng, int32_t alt, int32_t vx,
-    int32_t vy, int32_t vz);
-void comms_set_gps_info(uint8_t fix_mode, uint16_t pdop,
+void comms_set_gps_pv(int32_t lat, int32_t lng, int32_t alt, int32_t vn,
+    int32_t ve, int32_t vd);
+void comms_set_gps_info(uint8_t fix_mode, uint8_t pos_err,
     uint8_t num_satellites);
 
 /*
