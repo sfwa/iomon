@@ -66,11 +66,6 @@
 #include <sleepmgr.h>
 #include <sysclk.h>
 #include <usart.h>
-#include <usbc_device.h>
-#include <usb_protocol_cdc.h>
-#include <udi_cdc.h>
-#include <udc.h>
-#include <udd.h>
 #include <flashc.h>
 #include <wdt/wdt.h>
 

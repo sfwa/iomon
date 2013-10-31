@@ -175,19 +175,6 @@
  * 100: GPIO035: PB03 / PE3       / GPIN3
  */
 
-/* Multiplexed pin used for USB_ID: AVR32_USBC_ID_x.
-   To be selected according to the AVR32_USBC_ID_x_PIN and
-   AVR32_USBC_USB_ID_FUNCTION definitions from <avr32/uc3cxxxx.h>. */
-#define USB_ID                           AVR32_USBC_ID_
-
-/* Multiplexed pin used for USB_VBOF: AVR32_USBC_VBOF_x.
-   To be selected according to the AVR32_USBC_VBOF_x_PIN and
-   AVR32_USBC_USB_VBOF_FUNCTION definitions from <avr32/uc3cxxxx.h>. */
-#define USB_VBOF                         AVR32_USBC_VBOF
-
-/* Active level of the USB_VBOF output pin. */
-# define USB_VBOF_ACTIVE_LEVEL           LOW
-
 /* LED assignments for GPIOs -- active low */
 #define LED_ON(x) gpio_local_clr_gpio_pin(x)
 #define LED_OFF(x) gpio_local_set_gpio_pin(x)

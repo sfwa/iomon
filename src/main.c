@@ -1,49 +1,27 @@
-/**
-* \file
-*
-* \brief CDC Application Main functions
-*
-* Copyright (c) 2011-2012 Atmel Corporation. All rights reserved.
-*
-* \asf_license_start
-*
-* \page License
-*
-* Redistribution and use in source and binary forms, with or without
-* modification, are permitted provided that the following conditions are met:
-*
-* 1. Redistributions of source code must retain the above copyright notice,
-*    this list of conditions and the following disclaimer.
-*
-* 2. Redistributions in binary form must reproduce the above copyright notice,
-*    this list of conditions and the following disclaimer in the documentation
-*    and/or other materials provided with the distribution.
-*
-* 3. The name of Atmel may not be used to endorse or promote products derived
-*    from this software without specific prior written permission.
-*
-* 4. This software may only be redistributed and used in connection with an
-*    Atmel microcontroller product.
-*
-* THIS SOFTWARE IS PROVIDED BY ATMEL "AS IS" AND ANY EXPRESS OR IMPLIED
-* WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
-* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT ARE
-* EXPRESSLY AND SPECIFICALLY DISCLAIMED. IN NO EVENT SHALL ATMEL BE LIABLE FOR
-* ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-* DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
-* OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-* HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
-* STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-* ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-* POSSIBILITY OF SUCH DAMAGE.
-*
-* \asf_license_stop
-*
+/*
+Copyright (C) 2013 Ben Dyer
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
 */
 
+
 #include <asf.h>
-#include "conf_usb.h"
-#include "ui.h"
 #include "comms.h"
 #include "gp.h"
 #include "pwm.h"
@@ -51,8 +29,6 @@
 #include "ms5611.h"
 #include "hmc5883.h"
 #include "mpu6050.h"
-
-static volatile bool main_b_cdc_enable = false;
 
 int main(void) {
     irq_initialize_vectors();
@@ -88,12 +64,17 @@ int main(void) {
     barometer_init();
     magnetometer_init();
     gps_init();
-	ui_init();
+
+    /*
+    * - Led 0 is on when USB line is in IDLE mode, and blinks while COM open.
+    * - Led 1 is on until all peripherals are initialized, then stays off
+    * - Led 2 is on during PWM disable conditions (e.g. asserts, or no CPU)
+    * - Led 3 is on during assert conditions
+    */
+    LED_OFF(LED0_GPIO);
+    LED_OFF(LED3_GPIO);
 
 	wdt_clear();
-
-	/* Start USB stack to authorize VBus monitoring */
-	udc_start();
 
     wdt_options.us_timeout_period = 5000u;
     wdt_options.sfv = 1u; /* don't allow any further changes */
@@ -140,59 +121,4 @@ int main(void) {
             Assert(false);
         }
     }
-}
-
-void main_vbus_action(bool b_high) {
-    if (b_high) {
-        /* Attach USB Device */
-        udc_attach();
-    } else {
-        /* VBUS not present */
-        udc_detach();
-    }
-}
-
-void main_suspend_action(void) {
-    ui_powerdown();
-}
-
-void main_resume_action(void) {
-    ui_wakeup();
-}
-
-void main_sof_action(void) {
-    if (!main_b_cdc_enable) {
-        return;
-    }
-    ui_process(udd_get_frame_number());
-}
-
-bool main_cdc_enable(void) {
-    main_b_cdc_enable = true;
-    comms_enable_usb();
-
-    return true;
-}
-
-void main_cdc_disable(void) {
-    main_b_cdc_enable = false;
-    comms_disable_usb();
-}
-
-void main_cdc_set_dtr(bool b_enable) {
-    if (b_enable) {
-        /* Host terminal has opened COM */
-        ui_com_open();
-    } else {
-        /* Host terminal has closed COM */
-        ui_com_close();
-    }
-}
-
-void main_usb_rx_notify(void) {
-
-}
-
-void main_usb_config(void* arg) {
-
 }

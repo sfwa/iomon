@@ -68,21 +68,16 @@
         </avr32gcc.compiler.symbols.DefSymbols>
         <avr32gcc.compiler.directories.IncludePaths>
           <ListValues>
-            <Value>../lib/usb/udc</Value>
             <Value>../lib/preprocessor</Value>
             <Value>../lib/flashc</Value>
             <Value>../lib/usart</Value>
             <Value>../lib/sleepmgr</Value>
             <Value>../lib/intc</Value>
             <Value>../lib/pm</Value>
-            <Value>../lib/usbc</Value>
             <Value>../lib</Value>
-            <Value>../lib/usb/class/cdc/device</Value>
-            <Value>../lib/usb/class/cdc</Value>
             <Value>../lib/clock</Value>
             <Value>../lib/gpio</Value>
             <Value>../lib/scif</Value>
-            <Value>../lib/usb</Value>
             <Value>../src</Value>
             <Value>../src/config</Value>
           </ListValues>
@@ -106,21 +101,16 @@
         <avr32gcc.assembler.general.AssemblerFlags>-mrelax</avr32gcc.assembler.general.AssemblerFlags>
         <avr32gcc.assembler.general.IncludePaths>
           <ListValues>
-            <Value>../lib/usb/udc</Value>
             <Value>../lib/preprocessor</Value>
             <Value>../lib/flashc</Value>
             <Value>../lib/usart</Value>
             <Value>../lib/sleepmgr</Value>
             <Value>../lib/intc</Value>
             <Value>../lib/pm</Value>
-            <Value>../lib/usbc</Value>
             <Value>../lib</Value>
-            <Value>../lib/usb/class/cdc/device</Value>
-            <Value>../lib/usb/class/cdc</Value>
             <Value>../lib/clock</Value>
             <Value>../lib/gpio</Value>
             <Value>../lib/scif</Value>
-            <Value>../lib/usb</Value>
             <Value>../src</Value>
             <Value>../src/config</Value>
           </ListValues>
@@ -128,21 +118,16 @@
         <avr32gcc.preprocessingassembler.general.AssemblerFlags>-DBOARD=UC3C_EK -DUDD_ENABLE -mrelax</avr32gcc.preprocessingassembler.general.AssemblerFlags>
         <avr32gcc.preprocessingassembler.general.IncludePaths>
           <ListValues>
-            <Value>../lib/usb/udc</Value>
             <Value>../lib/preprocessor</Value>
             <Value>../lib/flashc</Value>
             <Value>../lib/usart</Value>
             <Value>../lib/sleepmgr</Value>
             <Value>../lib/intc</Value>
             <Value>../lib/pm</Value>
-            <Value>../lib/usbc</Value>
             <Value>../lib</Value>
-            <Value>../lib/usb/class/cdc/device</Value>
-            <Value>../lib/usb/class/cdc</Value>
             <Value>../lib/clock</Value>
             <Value>../lib/gpio</Value>
             <Value>../lib/scif</Value>
-            <Value>../lib/usb</Value>
             <Value>../src</Value>
             <Value>../src/config</Value>
           </ListValues>
@@ -166,21 +151,16 @@
   </avr32gcc.compiler.symbols.DefSymbols>
   <avr32gcc.compiler.directories.IncludePaths>
     <ListValues>
-      <Value>../lib/usb/udc</Value>
       <Value>../lib/preprocessor</Value>
       <Value>../lib/flashc</Value>
       <Value>../lib/usart</Value>
       <Value>../lib/sleepmgr</Value>
       <Value>../lib/intc</Value>
       <Value>../lib/pm</Value>
-      <Value>../lib/usbc</Value>
       <Value>../lib</Value>
-      <Value>../lib/usb/class/cdc/device</Value>
-      <Value>../lib/usb/class/cdc</Value>
       <Value>../lib/clock</Value>
       <Value>../lib/gpio</Value>
       <Value>../lib/scif</Value>
-      <Value>../lib/usb</Value>
       <Value>../src</Value>
       <Value>../src/config</Value>
       <Value>../lib/pdca</Value>
@@ -206,21 +186,16 @@
   <avr32gcc.assembler.general.AssemblerFlags>-mrelax</avr32gcc.assembler.general.AssemblerFlags>
   <avr32gcc.assembler.general.IncludePaths>
     <ListValues>
-      <Value>../lib/usb/udc</Value>
       <Value>../lib/preprocessor</Value>
       <Value>../lib/flashc</Value>
       <Value>../lib/usart</Value>
       <Value>../lib/sleepmgr</Value>
       <Value>../lib/intc</Value>
       <Value>../lib/pm</Value>
-      <Value>../lib/usbc</Value>
       <Value>../lib</Value>
-      <Value>../lib/usb/class/cdc/device</Value>
-      <Value>../lib/usb/class/cdc</Value>
       <Value>../lib/clock</Value>
       <Value>../lib/gpio</Value>
       <Value>../lib/scif</Value>
-      <Value>../lib/usb</Value>
       <Value>../src</Value>
       <Value>../src/config</Value>
     </ListValues>
@@ -229,21 +204,16 @@
   <avr32gcc.preprocessingassembler.general.AssemblerFlags>-DBOARD=UC3C_EK -DUDD_ENABLE -mrelax</avr32gcc.preprocessingassembler.general.AssemblerFlags>
   <avr32gcc.preprocessingassembler.general.IncludePaths>
     <ListValues>
-      <Value>../lib/usb/udc</Value>
       <Value>../lib/preprocessor</Value>
       <Value>../lib/flashc</Value>
       <Value>../lib/usart</Value>
       <Value>../lib/sleepmgr</Value>
       <Value>../lib/intc</Value>
       <Value>../lib/pm</Value>
-      <Value>../lib/usbc</Value>
       <Value>../lib</Value>
-      <Value>../lib/usb/class/cdc/device</Value>
-      <Value>../lib/usb/class/cdc</Value>
       <Value>../lib/clock</Value>
       <Value>../lib/gpio</Value>
       <Value>../lib/scif</Value>
-      <Value>../lib/usb</Value>
       <Value>../src</Value>
       <Value>../src/config</Value>
     </ListValues>
@@ -264,16 +234,10 @@
     <Folder Include="lib\pm\" />
     <Folder Include="lib\scif\" />
     <Folder Include="lib\usart\" />
-    <Folder Include="lib\usbc\" />
     <Folder Include="lib\linker\" />
     <Folder Include="lib\startup\" />
     <Folder Include="lib\clock\" />
     <Folder Include="lib\sleepmgr\" />
-    <Folder Include="lib\usb\" />
-    <Folder Include="lib\usb\class\" />
-    <Folder Include="lib\usb\class\cdc\" />
-    <Folder Include="lib\usb\class\cdc\device\" />
-    <Folder Include="lib\usb\udc\" />
     <Folder Include="lib\interrupt\" />
     <Folder Include="src\boards\" />
     <Folder Include="src\config\" />
@@ -302,16 +266,6 @@
     </None>
   </ItemGroup>
   <ItemGroup>
-    <None Include="src\ui.h">
-      <SubType>compile</SubType>
-    </None>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="lib\usb\udc\udc_desc.h">
-      <SubType>compile</SubType>
-    </None>
-  </ItemGroup>
-  <ItemGroup>
     <None Include="lib\scif\scif_uc3c.h">
       <SubType>compile</SubType>
     </None>
@@ -322,42 +276,7 @@
     </None>
   </ItemGroup>
   <ItemGroup>
-    <None Include="lib\usbc\usbc_device.h">
-      <SubType>compile</SubType>
-    </None>
-  </ItemGroup>
-  <ItemGroup>
     <None Include="lib\clock\pll.h">
-      <SubType>compile</SubType>
-    </None>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="lib\usb\class\cdc\device\udi_cdc.h">
-      <SubType>compile</SubType>
-    </None>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="lib\usb\udc\udd.h">
-      <SubType>compile</SubType>
-    </None>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="lib\usbc\usbc_otg.h">
-      <SubType>compile</SubType>
-    </None>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="lib\usb\udc\udi.h">
-      <SubType>compile</SubType>
-    </None>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="lib\usb\usb_atmel.h">
-      <SubType>compile</SubType>
-    </None>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="lib\usb\udc\udc.h">
       <SubType>compile</SubType>
     </None>
   </ItemGroup>
@@ -367,17 +286,7 @@
     </None>
   </ItemGroup>
   <ItemGroup>
-    <None Include="lib\usb\class\cdc\usb_protocol_cdc.h">
-      <SubType>compile</SubType>
-    </None>
-  </ItemGroup>
-  <ItemGroup>
     <None Include="lib\pm\sleep.h">
-      <SubType>compile</SubType>
-    </None>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="src\config\conf_usb.h">
       <SubType>compile</SubType>
     </None>
   </ItemGroup>
@@ -433,11 +342,6 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="lib\pm\power_clocks_lib.h">
-      <SubType>compile</SubType>
-    </None>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="lib\usb\usb_protocol.h">
       <SubType>compile</SubType>
     </None>
   </ItemGroup>
@@ -567,9 +471,6 @@
     <Compile Include="lib\usart\usart.c">
       <SubType>compile</SubType>
     </Compile>
-    <Compile Include="lib\usbc\usbc_device.c">
-      <SubType>compile</SubType>
-    </Compile>
     <Compile Include="lib\startup\startup_uc3.S">
       <SubType>compile</SubType>
     </Compile>
@@ -586,18 +487,6 @@
       <SubType>compile</SubType>
     </Compile>
     <Compile Include="lib\sleepmgr\sleepmgr.c">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="src\ui.c">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="lib\usb\class\cdc\device\udi_cdc.c">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="lib\usb\class\cdc\device\udi_cdc_desc.c">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="lib\usb\udc\udc.c">
       <SubType>compile</SubType>
     </Compile>
     <Compile Include="src\main.c">

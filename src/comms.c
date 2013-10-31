@@ -183,7 +183,6 @@ static uint8_t inbuf_idx;
 static enum rx_buf_parse_state_t rx_parse_state = RX_NO_MSG;
 
 static uint8_t crc_lookup[CRC8_TABLE_SIZE];
-static bool usb_enabled;
 static uint16_t last_cpu_packet_tick;
 static uint16_t cpu_reset_countdown_tick;
 
@@ -372,16 +371,6 @@ uint32_t comms_init(void) {
     return 0;
 }
 
-void comms_enable_usb(void) {
-    CommsAssert(!usb_enabled);
-    usb_enabled = true;
-}
-
-void comms_disable_usb(void) {
-    CommsAssert(usb_enabled);
-    usb_enabled = false;
-}
-
 uint16_t comms_tick(void) {
     /* Wrap packet values around */
     if (packet.tick == TICK_MAX) {
@@ -424,68 +413,50 @@ uint16_t comms_tick(void) {
 
     outbuf[1 + encode_result.out_len] = 0; /* Append a null byte */
 
-    /* If USB is enabled and ready, mirror sends from UART to USB, and use
-       USB for reads instead of UART. */
-    if (usb_enabled) {
-        /* Only send one USB packet every cmd_packet_rate_div ticks. */
-        if (udi_cdc_is_tx_ready() && packet.tick % cmd_packet_rate_div == 0) {
-            udi_cdc_write_buf(outbuf, encode_result.out_len + 2u);
-        }
+    /* Receive data from primary UART */
+    volatile avr32_pdca_channel_t *pdca_channel =
+        &AVR32_PDCA.channel[PDCA_CHANNEL_CPU_RX];
 
-        /* Receive data from USB, via the RX buffer */
-        if (udi_cdc_is_rx_ready()) {
-            rx_buf_idx = 0;
-            comms_process_rx_buf(RX_BUF_LEN -
-                udi_cdc_read_buf(rx_buf, RX_BUF_LEN));
+    uint32_t bytes_read = RX_BUF_LEN - pdca_channel->tcr;
+    uint8_t bytes_avail = 0;
 
-            last_cpu_packet_tick = packet.tick;
-        }
+    CommsAssert(bytes_read <= RX_BUF_LEN);
+
+    /* Work out the number of bytes available in the ring buffer */
+    if (bytes_read > rx_buf_idx) {
+        bytes_avail = bytes_read - rx_buf_idx;
+    } else if (bytes_read < rx_buf_idx) {
+        bytes_avail = (RX_BUF_LEN - rx_buf_idx - 1u) + bytes_read;
     } else {
-        /* Receive data from primary UART */
-        volatile avr32_pdca_channel_t *pdca_channel =
-            &AVR32_PDCA.channel[PDCA_CHANNEL_CPU_RX];
+        /* bytes_read == rx_buf_idx, i.e. nothing new has been read */
+        bytes_avail = 0;
+    }
 
-        uint32_t bytes_read = RX_BUF_LEN - pdca_channel->tcr;
-        uint8_t bytes_avail = 0;
+    if (bytes_avail > RX_BUF_LEN >> 1u) {
+        /* Either the PDCA isn't initialized, or there's been a possible
+           buffer overflow -- either way, re-initialize the RX PDCA channel. */
+        bytes_read = 0;
+        bytes_avail = 0;
+        rx_buf_idx = 0;
+        rx_parse_state = RX_NO_MSG;
 
-        CommsAssert(bytes_read <= RX_BUF_LEN);
+        irqflags_t flags = cpu_irq_save();
+        pdca_channel->cr = AVR32_PDCA_TDIS_MASK;
+        pdca_channel->mar = (uint32_t)rx_buf;
+        pdca_channel->tcr = RX_BUF_LEN;
+        pdca_channel->marr = (uint32_t)rx_buf;
+        pdca_channel->tcrr = RX_BUF_LEN;
+        pdca_channel->psr = CPU_USART_PDCA_PID_RX;
+        pdca_channel->mr = (AVR32_PDCA_BYTE << AVR32_PDCA_SIZE_OFFSET)
+            | (1 << AVR32_PDCA_RING_OFFSET);
+        pdca_channel->cr = AVR32_PDCA_ECLR_MASK | AVR32_PDCA_TEN_MASK;
+        pdca_channel->isr;
+        cpu_irq_restore(flags);
+    }
 
-        /* Work out the number of bytes available in the ring buffer */
-        if (bytes_read > rx_buf_idx) {
-            bytes_avail = bytes_read - rx_buf_idx;
-        } else if (bytes_read < rx_buf_idx) {
-            bytes_avail = (RX_BUF_LEN - rx_buf_idx - 1u) + bytes_read;
-        } else {
-            /* bytes_read == rx_buf_idx, i.e. nothing new has been read */
-            bytes_avail = 0;
-        }
-
-        if (bytes_avail > RX_BUF_LEN >> 1u) {
-            /* Either the PDCA isn't initialized, or there's been a possible
-               buffer overflow -- either way, re-initialize the RX PDCA channel. */
-            bytes_read = 0;
-            bytes_avail = 0;
-            rx_buf_idx = 0;
-            rx_parse_state = RX_NO_MSG;
-
-            irqflags_t flags = cpu_irq_save();
-            pdca_channel->cr = AVR32_PDCA_TDIS_MASK;
-            pdca_channel->mar = (uint32_t)rx_buf;
-            pdca_channel->tcr = RX_BUF_LEN;
-            pdca_channel->marr = (uint32_t)rx_buf;
-            pdca_channel->tcrr = RX_BUF_LEN;
-            pdca_channel->psr = CPU_USART_PDCA_PID_RX;
-            pdca_channel->mr = (AVR32_PDCA_BYTE << AVR32_PDCA_SIZE_OFFSET)
-                | (1 << AVR32_PDCA_RING_OFFSET);
-            pdca_channel->cr = AVR32_PDCA_ECLR_MASK | AVR32_PDCA_TEN_MASK;
-            pdca_channel->isr;
-            cpu_irq_restore(flags);
-        }
-
-        if (bytes_avail) {
-            comms_process_rx_buf(bytes_avail);
-            last_cpu_packet_tick = packet.tick;
-        }
+    if (bytes_avail) {
+        comms_process_rx_buf(bytes_avail);
+        last_cpu_packet_tick = packet.tick;
     }
 
     if (packet.tick % cmd_packet_rate_div == 0) {

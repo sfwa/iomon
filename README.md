@@ -7,15 +7,15 @@ Sensor monitor program for IO boards.
 
 `iomon/lib` contains modified, simplified versions of Atmel Software Framework
 peripheral drivers. Insofar as possible, unused code and functionality has
-been removed; particular remaining areas of bloat include the ADCIFA driver,
-the various clock drivers, and the USB drivers.
+been removed; particular remaining areas of bloat include the ADCIFA driver
+and the various clock drivers.
 
 `iomon/src` contains the main program code, divided into files mainly by
 peripheral device or support function:
 * `cobsr.c` is a serial framing protocol which encodes data packets to ensure
   null bytes are never found in the content, so they can be used as packet
   delimiters;
-* `comms.c` is the primary serial/USB driver code for sensor monitor output
+* `comms.c` is the primary serial driver code for sensor monitor output
   and control input;
 * `crc8.c` implements 8-bit, lookup-table-based CRC calculation;
 * `gp.c` implements ADC and GPIO interfaces;
@@ -34,7 +34,6 @@ peripheral device or support function:
   CPU interface;
 * `twim_pdca.c` is used by `i2cdevice.c` and the various I2C drivers to handle
   I2C "transactions" (write/read sequences) and DMA-based I2C commands;
-* `ui.c` implements flashing lights in response to various conditions;
 * `ubx_gps.c` is a USART-based driver for the u-blox UBX binary protocol.
 
 
@@ -42,9 +41,8 @@ peripheral device or support function:
 
 The `iomon` program is fundamentally an event loop which aggregates data
 received from devices via I2C, UART, ADC and GPIO interfaces, and transmits
-it in packets to a processing device. Aside from USB and PWM debug drivers, no
-interrupts are used, and the per-packet processing time is guaranteed to be
-less than 1ms.
+it in packets to a processing device. No interrupts are used, and the
+per-packet processing time is guaranteed to be less than 1ms.
 
 Each sensor has a device driver responsible for initializing it (the
 `*_init(void)` procedures) and reading its output (the `*_tick(void)`
@@ -72,11 +70,6 @@ The primary configuration mechanism is the board header file, in
 the appropriate functions, as well as assignments between internal AVR32
 peripherals and the external devices. The board file in use is determined by
 `iomon/src/config/conf_board.h`.
-
-Aside from those files, USB configuration data is stored in
-`iomon/src/config/conf_usb.h` and `iomon/src/config/udi_cdc_conf.h`. These
-configurations should not need to be changed, except perhaps for assigning
-unique USB device serial numbers to each board.
 
 The UBX driver requires that the GPS module has been configured appropriately,
 and the configuration has been saved to Flash. The required settings are:
@@ -113,7 +106,7 @@ GPS configuration requires u-blox [u-center](http://www.u-blox.com/en/evaluation
 
 ## Hardware installation
 
-1. Plug UART into CPU board, or USB into computer;
+1. Plug UART into CPU board;
 2. Connect servos and ESC to PWM output lines;
 3. Connect magnetometer to external I2C header;
 4. Connect battery I/V sensor to P9 header;

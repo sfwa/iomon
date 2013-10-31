@@ -26,12 +26,6 @@ Inititalize communications -- set up USART and clear data structures.
 uint32_t comms_init(void);
 
 /*
-Start/stop USB mirroring of communications
-*/
-void comms_enable_usb(void);
-void comms_disable_usb(void);
-
-/*
 Status register setting
 */
 void comms_set_cpu_status(uint32_t cycles_used);
