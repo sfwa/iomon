@@ -44,8 +44,8 @@ static struct twim_transaction_t init_sequence[] = {
     {MPU6050_DEVICE_ADDR, 2u, {0x1au, 0x00u}, 0, NULL},
     /* Write 0x08 to RA_GYRO_CONFIG -- no self test, scale 500deg/s */
     {MPU6050_DEVICE_ADDR, 2u, {0x1bu, 0x08u}, 0, NULL},
-    /* Write 0x08 to RA_ACCEL_CONFIG -- no self test, scale of +-4g, no HPF */
-    {MPU6050_DEVICE_ADDR, 2u, {0x1cu, 0x08u}, 0, NULL},
+    /* Write 0x10 to RA_ACCEL_CONFIG -- no self test, scale of +-8g, no HPF */
+    {MPU6050_DEVICE_ADDR, 2u, {0x1cu, 0x10u}, 0, NULL},
     /* Write 0x00 to RA_SIGNAL_PATH_RESET -- reset sensor signal paths */
     {MPU6050_DEVICE_ADDR, 2u, {0x68u, 0x00u}, 0, NULL},
     TWIM_TRANSACTION_SENTINEL
