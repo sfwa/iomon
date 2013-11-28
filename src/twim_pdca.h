@@ -46,25 +46,25 @@ the order defined. A transaction result is one of:
 */
 
 enum twim_transaction_status_t {
-	TWIM_TRANSACTION_STATUS_NONE = 0,
-	TWIM_TRANSACTION_STATUS_SENT
+    TWIM_TRANSACTION_STATUS_NONE = 0,
+    TWIM_TRANSACTION_STATUS_SENT
 };
 
 struct twim_transaction_t {
-	uint8_t dev_addr;
-	uint8_t tx_len;
-	uint8_t tx_buf[4];
-	uint8_t rx_len;
-	void *rx_buf;
-	enum twim_transaction_status_t txn_status;
+    uint8_t dev_addr;
+    uint8_t tx_len;
+    uint8_t tx_buf[4];
+    uint8_t rx_len;
+    void *rx_buf;
+    enum twim_transaction_status_t txn_status;
 };
 
 enum twim_transaction_result_t {
-	TWIM_TRANSACTION_EXECUTED = 0,
-	TWIM_TRANSACTION_NOTREADY,
-	TWIM_TRANSACTION_PENDING,
-	TWIM_TRANSACTION_SEQDONE,
-	TWIM_TRANSACTION_ERROR
+    TWIM_TRANSACTION_EXECUTED = 0,
+    TWIM_TRANSACTION_NOTREADY,
+    TWIM_TRANSACTION_PENDING,
+    TWIM_TRANSACTION_SEQDONE,
+    TWIM_TRANSACTION_ERROR
 };
 
 #define TWIM_TRANSACTION_SENTINEL {0, 0, {0}, 0, NULL, 0}
@@ -83,11 +83,11 @@ channel combination.
 */
 
 struct twim_pdca_cfg_t {
-	volatile avr32_twim_t *twim;
-	uint8_t tx_pdca_num;
-	uint8_t rx_pdca_num;
-	uint32_t tx_pid;
-	uint32_t rx_pid;
+    volatile avr32_twim_t *twim;
+    uint8_t tx_pdca_num;
+    uint8_t rx_pdca_num;
+    uint32_t tx_pid;
+    uint32_t rx_pid;
 };
 
 /*
@@ -103,7 +103,7 @@ twim_pdca_write executes a write[/read] transaction specified by txn on the
 TWIM identified by cfg.
 */
 void twim_pdca_transact(struct twim_pdca_cfg_t *cfg,
-    struct twim_transaction_t *txn);
+struct twim_transaction_t *txn);
 
 /*
 twim_run_sequence executes the next transaction in seq (indexed by seq_idx);
@@ -111,6 +111,6 @@ if both write and read components of the transaction have been successfully
 completed it returns TWIM_TRANSACTION_EXECUTED.
 */
 enum twim_transaction_result_t twim_run_sequence(struct twim_pdca_cfg_t *cfg,
-	struct twim_transaction_t seq[], uint32_t seq_idx);
+struct twim_transaction_t seq[], uint32_t seq_idx);
 
 #endif

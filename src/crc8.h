@@ -35,4 +35,4 @@ void crc8_init(uint8_t table[], uint8_t polynomial);
  * crc: previous returned crc8 value.
  */
 uint8_t crc8(const uint8_t table[], const uint8_t const *pdata,
-    uint32_t nbytes, uint8_t crc);
+uint32_t nbytes, uint8_t crc);

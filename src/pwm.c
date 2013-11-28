@@ -95,9 +95,9 @@ void pwm_tick(void) {
         }
     }
 
-	if (got_pwm_values) {
-		pwm_set_values(pwm_values);
-	}
+    if (got_pwm_values) {
+        pwm_set_values(pwm_values);
+    }
 
     /* Enable PWM if it isn't already, and we've received at least some data
        from the CPU (otherwise the values would still be 0) */

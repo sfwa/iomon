@@ -207,8 +207,8 @@ void gp_tick(void) {
         if (sample < 0) { /* Clamp negative samples to zero */
             sample = 0;
         } else if (sample >= 2047) { /* Clamp samples to +2047 */
-			sample = 2047;
-		}
+            sample = 2047;
+        }
 
         adc_totals[gp_adc_last_sample_idx % GP_NUM_ADCS] += (uint32_t)sample;
         adc_sample_count[gp_adc_last_sample_idx % GP_NUM_ADCS]++;

@@ -31,13 +31,13 @@ SOFTWARE.
 static uint8_t mpu6050_inbuf[14];
 
 static struct twim_transaction_t init_sequence[] = {
-    /* 
+    /*
     Device address, TX byte count, TX bytes (0-4), RX byte count, RX buffer
-    
-    With this configuration, accel and gyro are sampled at 8kHz with 
-    accelerometer LPF off (260Hz), gyro LPF off (256Hz), accel latency at 0ms 
-    and gyro latency at 0.98ms. 
-    
+
+    With this configuration, accel and gyro are sampled at 8kHz with
+    accelerometer LPF off (260Hz), gyro LPF off (256Hz), accel latency at 0ms
+    and gyro latency at 0.98ms.
+
     Full-scale on accel is 8g, and gyro is 500deg/s.
     */
 

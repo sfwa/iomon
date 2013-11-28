@@ -46,7 +46,7 @@ uint32_t dst_buf_len, const uint8_t * src_ptr, uint32_t src_len) {
     Assert(dst_buf_ptr + dst_buf_len < src_ptr || dst_buf_ptr > src_ptr + src_len);
 
 
-    struct cobsr_encode_result result              = { 0, COBSR_ENCODE_OK };
+    struct cobsr_encode_result result       = { 0, COBSR_ENCODE_OK };
     const uint8_t *     src_end_ptr         = src_ptr + src_len;
     uint8_t *           dst_buf_end_ptr     = dst_buf_ptr + dst_buf_len;
     uint8_t *           dst_code_write_ptr  = dst_buf_ptr;
@@ -132,7 +132,7 @@ uint32_t dst_buf_len, const uint8_t * src_ptr, uint32_t src_len) {
     Assert(dst_buf_ptr + dst_buf_len < src_ptr ||
            dst_buf_ptr > src_ptr + src_len);
 
-    struct cobsr_decode_result result              = { 0, COBSR_DECODE_OK };
+    struct cobsr_decode_result result       = { 0, COBSR_DECODE_OK };
     const uint8_t *     src_end_ptr         = src_ptr + src_len;
     uint8_t *           dst_buf_end_ptr     = dst_buf_ptr + dst_buf_len;
     uint8_t *           dst_write_ptr       = dst_buf_ptr;

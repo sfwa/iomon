@@ -68,22 +68,22 @@
 #define FOSC0           16000000u                               /* Osc0 frequency: Hz. */
 #define OSC0_STARTUP    AVR32_SCIF_OSCCTRL0_STARTUP_2048_RCOSC  /* Osc0 startup time: RCOsc periods. */
 
-#define BOARD_OSC0_HZ           16000000u
-#define BOARD_OSC0_STARTUP_US   2000u
-#define BOARD_OSC0_IS_XTAL      true
-#define BOARD_OSC32_HZ          32768u
-#define BOARD_OSC32_STARTUP_US  71000u
-#define BOARD_OSC32_IS_XTAL     true
+#define BOARD_OSC0_HZ                    16000000u
+#define BOARD_OSC0_STARTUP_US            2000u
+#define BOARD_OSC0_IS_XTAL               true
+#define BOARD_OSC32_HZ                   32768u
+#define BOARD_OSC32_STARTUP_US           71000u
+#define BOARD_OSC32_IS_XTAL              true
 
 /* Clock setup */
-#define CONFIG_SYSCLK_SOURCE          SYSCLK_SRC_PLL0
-#define CONFIG_PLL0_SOURCE            PLL_SRC_OSC0
-#define CONFIG_USBCLK_SOURCE          USBCLK_SRC_PLL0
-#define CONFIG_USBCLK_DIV             1 /* Fusb = Fsys/(2 ^ USB_div) */
+#define CONFIG_SYSCLK_SOURCE             SYSCLK_SRC_PLL0
+#define CONFIG_PLL0_SOURCE               PLL_SRC_OSC0
+#define CONFIG_USBCLK_SOURCE             USBCLK_SRC_PLL0
+#define CONFIG_USBCLK_DIV                1 /* Fusb = Fsys/(2 ^ USB_div) */
 
 /* Set up PLL0 for 48MHz operation; Fpll = (Fclk * PLL_mul) / PLL_div */
-#define CONFIG_PLL0_MUL               4u
-#define CONFIG_PLL0_DIV               1u
+#define CONFIG_PLL0_MUL                  4u
+#define CONFIG_PLL0_DIV                  1u
 
 
 /* UC3C1512 - TQFP100 / STK600 / Function pin assignments

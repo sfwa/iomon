@@ -55,7 +55,7 @@ int main(void) {
     /* Initialize the core iomon systems */
     comms_init();
 
-	wdt_clear();
+    wdt_clear();
 
     /* Initialize peripheral devices */
     gp_init();
@@ -74,7 +74,7 @@ int main(void) {
     LED_OFF(LED0_GPIO);
     LED_OFF(LED3_GPIO);
 
-	wdt_clear();
+    wdt_clear();
 
     wdt_options.us_timeout_period = 5000u;
     wdt_options.sfv = 1u; /* don't allow any further changes */

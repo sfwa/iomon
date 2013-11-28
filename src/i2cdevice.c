@@ -41,12 +41,12 @@ void i2c_device_init(struct i2c_device_t *dev) {
     /* Set up GPIOs */
     gpio_enable_module_pin(dev->sda_pin_id, dev->sda_function);
     gpio_enable_module_pin(dev->scl_pin_id, dev->scl_function);
-	/* PBA for TWIM0-1, PBC for TWIM2 */
-	if (dev->twim_cfg.twim != &AVR32_TWIM2) {
-		sysclk_enable_pba_module(dev->sysclk_id);
-	} else {
-		sysclk_enable_pbc_module(dev->sysclk_id);
-	}	
+    /* PBA for TWIM0-1, PBC for TWIM2 */
+    if (dev->twim_cfg.twim != &AVR32_TWIM2) {
+        sysclk_enable_pba_module(dev->sysclk_id);
+    } else {
+        sysclk_enable_pbc_module(dev->sysclk_id);
+    }
 
     /* Configure power enable pin */
     if (dev->enable_pin_id) {
@@ -68,9 +68,9 @@ void i2c_device_tick(struct i2c_device_t *dev) {
         if (dev->enable_pin_id) {
             gpio_local_set_gpio_pin(dev->enable_pin_id);
         }
-		twim_pdca_init(&(dev->twim_cfg), dev->speed);
-		
-		dev->init_sequence[0].txn_status = TWIM_TRANSACTION_STATUS_NONE;
+        twim_pdca_init(&(dev->twim_cfg), dev->speed);
+
+        dev->init_sequence[0].txn_status = TWIM_TRANSACTION_STATUS_NONE;
         i2c_device_state_transition(dev, I2C_POWERING_UP);
     } else if (dev->state == I2C_POWERING_UP &&
             dev->state_timer > dev->power_delay) {
@@ -83,12 +83,12 @@ void i2c_device_tick(struct i2c_device_t *dev) {
             dev->sequence_idx);
 
         if (result == TWIM_TRANSACTION_SEQDONE) {
-			dev->read_sequence[0].txn_status = TWIM_TRANSACTION_STATUS_NONE;
+            dev->read_sequence[0].txn_status = TWIM_TRANSACTION_STATUS_NONE;
             i2c_device_state_transition(dev, I2C_READ_SEQUENCE);
         } else if (result == TWIM_TRANSACTION_EXECUTED) {
             dev->sequence_idx++;
-        } else if (result == TWIM_TRANSACTION_ERROR || 
-				dev->state_timer > dev->init_timeout) {
+        } else if (result == TWIM_TRANSACTION_ERROR ||
+                dev->state_timer > dev->init_timeout) {
             /* Power the device down */
             if (dev->enable_pin_id) {
                 gpio_local_clr_gpio_pin(dev->enable_pin_id);

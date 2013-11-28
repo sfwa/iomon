@@ -26,20 +26,20 @@ SOFTWARE.
 #include "compiler.h"
 
 /* 12MHz oscillator connected to XIN0 */
-#define BOARD_OSC0_HZ           12000000u
-#define BOARD_OSC0_STARTUP_US   2000u
-#define BOARD_OSC0_IS_XTAL      false
+#define BOARD_OSC0_HZ                    12000000u
+#define BOARD_OSC0_STARTUP_US            2000u
+#define BOARD_OSC0_IS_XTAL               false
 
 /* Clock setup */
-#define CONFIG_SYSCLK_SOURCE          SYSCLK_SRC_PLL0
-#define CONFIG_PLL0_SOURCE            PLL_SRC_OSC0
-#define CONFIG_USBCLK_SOURCE          USBCLK_SRC_PLL0
-#define CONFIG_USBCLK_DIV             1 /* Fusb = Fsys/(2 ^ USB_div) */
+#define CONFIG_SYSCLK_SOURCE             SYSCLK_SRC_PLL0
+#define CONFIG_PLL0_SOURCE               PLL_SRC_OSC0
+#define CONFIG_USBCLK_SOURCE             USBCLK_SRC_PLL0
+#define CONFIG_USBCLK_DIV                1 /* Fusb = Fsys/(2 ^ USB_div) */
 
 /* Set up PLL0 for 48MHz operation; Fpll = (Fclk * PLL_mul) / PLL_div
    All we need to do is multiply by 4. */
-#define CONFIG_PLL0_MUL               4u
-#define CONFIG_PLL0_DIV               1u
+#define CONFIG_PLL0_MUL                  4u
+#define CONFIG_PLL0_DIV                  1u
 
 /* UC3C1512 - TQFP100 / IOBOARD      / Software function pin assignments
  *

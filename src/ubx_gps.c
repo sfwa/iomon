@@ -255,18 +255,18 @@ void ubx_tick(void) {
             ubx_inbuf_msg_ck_a += ch;
             ubx_inbuf_msg_ck_b += ubx_inbuf_msg_ck_a;
         } else if (ubx_inbuf_parse_state == UBX_PARSER_MSG_ID &&
-				ch <= UBX_MSGBUF_SIZE - UBX_SUFFIX_LEN) {
+                ch <= UBX_MSGBUF_SIZE - UBX_SUFFIX_LEN) {
             /* Got the first length byte */
             ubx_inbuf_parse_state = UBX_PARSER_LENGTH_0;
 
-			/* Read the lower byte of the message length */
+            /* Read the lower byte of the message length */
             ubx_inbuf_msg_len_remaining = ch + UBX_SUFFIX_LEN;
             ubx_msgbuf_idx = 0;
 
             ubx_inbuf_msg_ck_a += ch;
             ubx_inbuf_msg_ck_b += ubx_inbuf_msg_ck_a;
         } else if (ubx_inbuf_parse_state == UBX_PARSER_LENGTH_0 &&
-				ch == 0x00) {
+                ch == 0x00) {
             ubx_inbuf_parse_state = UBX_PARSER_LENGTH_1;
 
             ubx_inbuf_msg_ck_a += ch;

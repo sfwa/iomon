@@ -349,9 +349,9 @@ uint32_t comms_init(void) {
     /* Configure CPU board reset output */
     gpio_configure_pin(CPU_RESET_PIN, GPIO_DIR_OUTPUT | GPIO_INIT_LOW);
 
-	/* Clear out packets */
-	memset(&control, 0, sizeof(control));
-	memset(&packet, 0, sizeof(packet));
+    /* Clear out packets */
+    memset(&control, 0, sizeof(control));
+    memset(&packet, 0, sizeof(packet));
 
     last_cpu_packet_tick = 0;
     cpu_reset_countdown_tick = 0;
@@ -565,8 +565,8 @@ static void comms_process_rx_buf(uint32_t bytes_avail) {
 
                         /* Process command packet */
                         if (!memcmp(cmd_key_packet_rate_div_set,
-								cmd.cmd,
-								sizeof(cmd_key_packet_rate_div_set) - 1u)) {
+                                cmd.cmd,
+                                sizeof(cmd_key_packet_rate_div_set) - 1u)) {
                             /* Got a packet rate set packet -- set global
                                rate divisor to the new value, assuming it's
                                not 0. */

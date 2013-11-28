@@ -31,7 +31,7 @@ SOFTWARE.
 struct ms5611_read_t {
     int32_t temp; /* 1/100ths of a deg C, from -4000 to 8500 */
     int32_t p;    /* 1/100ths of an mbar, from 1000 to 120000 */
-	uint8_t err;
+    uint8_t err;
 };
 
 static uint16_t sens_t1, off_t1, tcs, tco, t_ref, tempsens;
@@ -39,22 +39,22 @@ static uint8_t d1_buf[3], d2_buf[3];
 static uint32_t ms5611_last_conv_requested;
 
 static struct twim_transaction_t init_sequence[] = {
-	/* Device address, TX byte count, TX bytes (0-4), RX byte count, RX buffer */
-	{MS5611_DEVICE_ADDR, 1u, {0xA2u}, 2u, &sens_t1},  /* READ C1 */
-	{MS5611_DEVICE_ADDR, 1u, {0xA4u}, 2u, &off_t1},   /* READ C2 */
-	{MS5611_DEVICE_ADDR, 1u, {0xA6u}, 2u, &tcs},      /* READ C3 */
-	{MS5611_DEVICE_ADDR, 1u, {0xA8u}, 2u, &tco},      /* READ C4 */
-	{MS5611_DEVICE_ADDR, 1u, {0xAAu}, 2u, &t_ref},    /* READ C5 */
-	{MS5611_DEVICE_ADDR, 1u, {0xACu}, 2u, &tempsens}, /* READ C6 */
-	TWIM_TRANSACTION_SENTINEL
+    /* Device address, TX byte count, TX bytes (0-4), RX byte count, RX buffer */
+    {MS5611_DEVICE_ADDR, 1u, {0xA2u}, 2u, &sens_t1},  /* READ C1 */
+    {MS5611_DEVICE_ADDR, 1u, {0xA4u}, 2u, &off_t1},   /* READ C2 */
+    {MS5611_DEVICE_ADDR, 1u, {0xA6u}, 2u, &tcs},      /* READ C3 */
+    {MS5611_DEVICE_ADDR, 1u, {0xA8u}, 2u, &tco},      /* READ C4 */
+    {MS5611_DEVICE_ADDR, 1u, {0xAAu}, 2u, &t_ref},    /* READ C5 */
+    {MS5611_DEVICE_ADDR, 1u, {0xACu}, 2u, &tempsens}, /* READ C6 */
+    TWIM_TRANSACTION_SENTINEL
 };
 
 static struct twim_transaction_t read_sequence[] = {
-	{MS5611_DEVICE_ADDR, 1u, {0x52u}, 0, NULL},      /* CONV D2, OSR=512 */
-	{MS5611_DEVICE_ADDR, 1u, {0x00u}, 3u, d2_buf},   /* ADC READ initiate */
-	{MS5611_DEVICE_ADDR, 1u, {0x42u}, 0, NULL},      /* CONV D1, OSR=512 */
-	{MS5611_DEVICE_ADDR, 1u, {0x00u}, 3u, d1_buf},   /* ADC READ initiate */
-	TWIM_TRANSACTION_SENTINEL
+    {MS5611_DEVICE_ADDR, 1u, {0x52u}, 0, NULL},      /* CONV D2, OSR=512 */
+    {MS5611_DEVICE_ADDR, 1u, {0x00u}, 3u, d2_buf},   /* ADC READ initiate */
+    {MS5611_DEVICE_ADDR, 1u, {0x42u}, 0, NULL},      /* CONV D1, OSR=512 */
+    {MS5611_DEVICE_ADDR, 1u, {0x00u}, 3u, d1_buf},   /* ADC READ initiate */
+    TWIM_TRANSACTION_SENTINEL
 };
 
 static struct i2c_device_t ms5611 = {
@@ -167,16 +167,16 @@ void ms5611_tick(void) {
 
     /* Attempt to read the value for the last requested sample; abort if not
        ready. */
-	enum twim_transaction_result_t result;
+    enum twim_transaction_result_t result;
     result = twim_run_sequence(&ms5611.twim_cfg, ms5611.read_sequence,
             ms5611.sequence_idx);
     if (result != TWIM_TRANSACTION_EXECUTED) {
         return;
     }
 
-	ms5611.sequence_idx++;
+    ms5611.sequence_idx++;
 
-	struct ms5611_read_t conv_result;
+    struct ms5611_read_t conv_result;
     switch (ms5611.sequence_idx) {
         case 1u:
         case 3u:
@@ -189,8 +189,8 @@ void ms5611_tick(void) {
                 d2_buf[2] + (d2_buf[1] << 8u) + (d2_buf[0] << 16u));
 
             if (!conv_result.err) {
-                comms_set_barometer_pressure_temp(conv_result.p, 
-					conv_result.temp);
+                comms_set_barometer_pressure_temp(conv_result.p,
+                    conv_result.temp);
             } else {
                 /* Something went wrong */
                 MS5611Assert(false);

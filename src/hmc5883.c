@@ -176,12 +176,12 @@ void hmc5883_measure(void) {
             /* Magnetic field over-/underflow -- should maybe adjust
                sensitivity automatically? */
             if (!  (-2048 <= m[0] && m[0] <= 2047 &&
-				    -2048 <= m[1] && m[1] <= 2047 &&
+                    -2048 <= m[1] && m[1] <= 2047 &&
                     -2048 <= m[2] && m[2] <= 2047)) {
-				/* Power the device down */
-				if (hmc5883.enable_pin_id) {
-					gpio_local_clr_gpio_pin(hmc5883.enable_pin_id);
-				}
+                /* Power the device down */
+                if (hmc5883.enable_pin_id) {
+                    gpio_local_clr_gpio_pin(hmc5883.enable_pin_id);
+                }
                 i2c_device_state_transition(&hmc5883, I2C_POWERING_DOWN);
                 return;
             }
@@ -263,10 +263,10 @@ void hmc5883_test(void) {
             if (!  (-2048 <= results[0] && results[0] <= 2047 &&
                     -2048 <= results[1] && results[1] <= 2047 &&
                     -2048 <= results[2] && results[2] <= 2047)) {
-				/* Power the device down */
-				if (hmc5883.enable_pin_id) {
-					gpio_local_clr_gpio_pin(hmc5883.enable_pin_id);
-				}
+                /* Power the device down */
+                if (hmc5883.enable_pin_id) {
+                    gpio_local_clr_gpio_pin(hmc5883.enable_pin_id);
+                }
                 i2c_device_state_transition(&hmc5883, I2C_POWERING_DOWN);
                 return;
             }
@@ -291,7 +291,7 @@ void hmc5883_test(void) {
                 hmc5883_test_results[2] <= (2047 << 3));
 
             hmc5883.state_timer = 0;
-			hmc5883_thermal_comp_sequence_idx++;
+            hmc5883_thermal_comp_sequence_idx++;
         }
     }
 
