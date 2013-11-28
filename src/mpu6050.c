@@ -31,16 +31,21 @@ SOFTWARE.
 static uint8_t mpu6050_inbuf[14];
 
 static struct twim_transaction_t init_sequence[] = {
-    /* Device address, TX byte count, TX bytes (0-4), RX byte count, RX buffer
-       With this configuration, accel and gyro are sampled at 8kHz with
-       accelerometer LPF at 260Hz, gyro LPF at 256Hz, accel delay at 0ms and
-       gyro delay at 0.98ms. Full-scale on gyro is 500deg/s, and accel is 4g. */
+    /* 
+    Device address, TX byte count, TX bytes (0-4), RX byte count, RX buffer
+    
+    With this configuration, accel and gyro are sampled at 8kHz with 
+    accelerometer LPF off (260Hz), gyro LPF off (256Hz), accel latency at 0ms 
+    and gyro latency at 0.98ms. 
+    
+    Full-scale on accel is 8g, and gyro is 500deg/s.
+    */
 
-	/* Write 0x02 to RA_PWR_MGMT_1 -- sets clock source to gyro w/ PLL */
+    /* Write 0x02 to RA_PWR_MGMT_1 -- sets clock source to gyro w/ PLL */
     {MPU6050_DEVICE_ADDR, 2u, {0x6bu, 0x02u}, 0, NULL},
     /* Write 0x00 to RA_SMPLRT_DIV -- 8000/(1+0) = 8kHz */
     {MPU6050_DEVICE_ADDR, 2u, {0x19u, 0x00u}, 0, NULL},
-    /* Write 0x00 to RA_CONFIG -- disable FSync, 256Hz low-pass */
+    /* Write 0x00 to RA_CONFIG -- disable FSync, no/256Hz low-pass */
     {MPU6050_DEVICE_ADDR, 2u, {0x1au, 0x00u}, 0, NULL},
     /* Write 0x08 to RA_GYRO_CONFIG -- no self test, scale 500deg/s */
     {MPU6050_DEVICE_ADDR, 2u, {0x1bu, 0x08u}, 0, NULL},
