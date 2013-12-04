@@ -346,6 +346,11 @@ uint32_t comms_init(void) {
     gpio_enable_module_pin(CPU_USART_TXD_PIN, CPU_USART_TXD_FUNCTION);
     sysclk_enable_pba_module(CPU_USART_SYSCLK);
 
+    /* Configure AUX USART interfaces */
+    gpio_enable_module_pin(AUX_USART_RXD_PIN, AUX_USART_RXD_FUNCTION);
+    gpio_enable_module_pin(AUX_USART_TXD_PIN, AUX_USART_TXD_FUNCTION);
+    sysclk_enable_pba_module(AUX_USART_SYSCLK);
+
     /* Configure CPU board reset output */
     gpio_configure_pin(CPU_RESET_PIN, GPIO_DIR_OUTPUT | GPIO_INIT_LOW);
 
@@ -365,6 +370,17 @@ uint32_t comms_init(void) {
     usart_options.channelmode = USART_NORMAL_CHMODE;
     CPU_USART->idr = 0xFFFFFFFFu;
     uint32_t result = usart_init_rs232(CPU_USART, &usart_options,
+        sysclk_get_pba_hz());
+    CommsAssert(result == USART_SUCCESS);
+
+    /* Configure AUX USART */
+    usart_options.baudrate = 921600u;
+    usart_options.charlength = 8u;
+    usart_options.paritytype = USART_NO_PARITY;
+    usart_options.stopbits = USART_1_STOPBIT;
+    usart_options.channelmode = USART_NORMAL_CHMODE;
+    AUX_USART->idr = 0xFFFFFFFFu;
+    result = usart_init_rs232(AUX_USART, &usart_options,
         sysclk_get_pba_hz());
     CommsAssert(result == USART_SUCCESS);
 
@@ -460,11 +476,10 @@ uint16_t comms_tick(void) {
     }
 
     if (packet.tick % cmd_packet_rate_div == 0) {
-        /* Schedule the transfer over CPU UART */
-        volatile avr32_pdca_channel_t *pdca_channel =
-            &AVR32_PDCA.channel[PDCA_CHANNEL_CPU_TX];
-
+        /* Schedule the transfer over CPU and AUX UARTs */
         irqflags_t flags = cpu_irq_save();
+
+        pdca_channel = &AVR32_PDCA.channel[PDCA_CHANNEL_CPU_TX];
         pdca_channel->cr = AVR32_PDCA_TDIS_MASK;
         pdca_channel->mar = (uint32_t)outbuf;
         pdca_channel->tcr = encode_result.out_len + 2u;
@@ -474,6 +489,18 @@ uint16_t comms_tick(void) {
         pdca_channel->mr = AVR32_PDCA_BYTE << AVR32_PDCA_SIZE_OFFSET;
         pdca_channel->cr = AVR32_PDCA_ECLR_MASK | AVR32_PDCA_TEN_MASK;
         pdca_channel->isr;
+
+        pdca_channel = &AVR32_PDCA.channel[PDCA_CHANNEL_AUX_TX];
+        pdca_channel->cr = AVR32_PDCA_TDIS_MASK;
+        pdca_channel->mar = (uint32_t)outbuf;
+        pdca_channel->tcr = encode_result.out_len + 2u;
+        pdca_channel->marr = 0;
+        pdca_channel->tcrr = 0;
+        pdca_channel->psr = AUX_USART_PDCA_PID_TX;
+        pdca_channel->mr = AVR32_PDCA_BYTE << AVR32_PDCA_SIZE_OFFSET;
+        pdca_channel->cr = AVR32_PDCA_ECLR_MASK | AVR32_PDCA_TEN_MASK;
+        pdca_channel->isr;
+
         cpu_irq_restore(flags);
 
         /* Clear out the packet data after the tick value */

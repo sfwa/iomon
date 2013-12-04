@@ -337,7 +337,7 @@ static void ubx_process_latest_msg(void) {
         memcpy(&msg, ubx_msgbuf, sizeof(msg));
 
         /* Translate fix modes */
-        if (msg.flags & 0x01u == 0) {
+        if ((msg.flags & 0x01u) == 0) {
             /* gnssFixOK flag not set -- ignore fix (GPS.G7-SW-12001-B p. 2)*/
             ubx_last_fix_mode = GPS_FIX_NONE;
         } else if (msg.fixType == 0x02u) {
