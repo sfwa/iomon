@@ -151,7 +151,7 @@ static uint8_t cmd_packet_rate_div = 1u;
 
 #define TICK_MAX 65535u
 /* From http://www.ece.cmu.edu/~koopman/roses/dsn04/koopman04_crc_poly_embedded.pdf
-   0x97 in Koopman notation = 0x12F in MSB-first notation, so excluing implicit
+   0x97 in Koopman notation = 0x12F in MSB-first notation, so excluding implicit
    x^n term we get 2F. */
 #define COMM_CRC8_POLY 0x2Fu
 #define OUTBUF_LEN 80u
