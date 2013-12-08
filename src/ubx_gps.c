@@ -191,7 +191,7 @@ void ubx_tick(void) {
     }
 
     uint32_t inbuf_bytes_read = UBX_INBUF_SIZE - pdca_channel->tcr;
-    uint8_t bytes_avail = 0;
+    uint32_t bytes_avail = 0;
 
     UbxAssert(inbuf_bytes_read <= UBX_INBUF_SIZE);
 

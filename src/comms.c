@@ -434,7 +434,7 @@ uint16_t comms_tick(void) {
         &AVR32_PDCA.channel[PDCA_CHANNEL_CPU_RX];
 
     uint32_t bytes_read = RX_BUF_LEN - pdca_channel->tcr;
-    uint8_t bytes_avail = 0;
+    uint32_t bytes_avail = 0;
 
     CommsAssert(bytes_read <= RX_BUF_LEN);
 
@@ -473,6 +473,9 @@ uint16_t comms_tick(void) {
     if (bytes_avail) {
         comms_process_rx_buf(bytes_avail);
         last_cpu_packet_tick = packet.tick;
+        LED_ON(LED0_GPIO);
+    } else {
+        LED_OFF(LED0_GPIO);
     }
 
     if (packet.tick % cmd_packet_rate_div == 0) {
