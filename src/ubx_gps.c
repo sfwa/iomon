@@ -158,9 +158,9 @@ void ubx_init(void) {
     /* Configure GPS power enable */
     gpio_configure_pin(GPS_ENABLE_PIN, GPIO_DIR_OUTPUT | GPIO_INIT_LOW);
 
-    /* Enable USART -- start in 57600 baud mode */
+    /* Enable USART -- start in 115200 baud mode */
     usart_options_t usart_options;
-    usart_options.baudrate = 57600u;
+    usart_options.baudrate = 115200u;
     usart_options.charlength = 8u;
     usart_options.paritytype = USART_NO_PARITY;
     usart_options.stopbits = USART_1_STOPBIT;
