@@ -363,7 +363,7 @@ uint32_t comms_init(void) {
 
     /* Configure CPU USART */
     static usart_options_t usart_options;
-    usart_options.baudrate = 2604166u;
+    usart_options.baudrate = 868056u;
     usart_options.charlength = 8u;
     usart_options.paritytype = USART_NO_PARITY;
     usart_options.stopbits = USART_1_STOPBIT;
@@ -374,7 +374,7 @@ uint32_t comms_init(void) {
     CommsAssert(result == USART_SUCCESS);
 
     /* Configure AUX USART */
-    usart_options.baudrate = 2604166u;
+    usart_options.baudrate = 868056u;
     usart_options.charlength = 8u;
     usart_options.paritytype = USART_NO_PARITY;
     usart_options.stopbits = USART_1_STOPBIT;
