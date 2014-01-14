@@ -586,10 +586,10 @@ static void comms_process_rx_buf(uint32_t bytes_avail) {
                 /* Process the message and write into the relevant
                    packet. */
                 if (calc_crc == packet_crc) {
-                    if (msgbuf[3] == MSG_TYPE_CONTROL &&
+                    if (msgbuf[2] == MSG_TYPE_CONTROL &&
                             dresult.out_len == sizeof(control)) {
                         memcpy(&control, msgbuf, sizeof(control));
-                    } else if (msgbuf[3] == MSG_TYPE_CMD &&
+                    } else if (msgbuf[2] == MSG_TYPE_CMD &&
                             dresult.out_len == sizeof(cmd)) {
                         memcpy(&cmd, msgbuf, sizeof(cmd));
 
