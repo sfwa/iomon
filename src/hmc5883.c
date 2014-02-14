@@ -29,7 +29,6 @@ SOFTWARE.
 #include "hmc5883.h"
 
 static uint8_t hmc5883_inbuf[6];
-static uint8_t hmc5883_testbuf[6];
 
 static struct twim_transaction_t init_sequence[] = {
     /* Device address, TX byte count, TX bytes (0-4), RX byte count, RX buffer

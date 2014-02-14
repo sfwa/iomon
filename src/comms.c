@@ -47,7 +47,7 @@ struct sensor_packet_t {
     uint16_t tick;
     uint8_t sensor_update_flags;
     uint8_t cpu_load;
-    uint16_t status;
+    uint16_t pwm_in;
 
     /* Sensor fields */
     struct {
@@ -90,18 +90,6 @@ struct sensor_packet_t {
 } __attribute__ ((packed));
 
 #define SENSOR_PACKET_LEN 60u
-
-#define SENSOR_STATUS_TXERR_MASK   0x00000001u
-#define SENSOR_STATUS_RXERR_MASK   0x00000002u
-#define SENSOR_STATUS_GPS_MASK     0x0000001cu
-#define SENSOR_STATUS_GPS_OFFSET   2u
-#define SENSOR_STATUS_BAROMETER_MASK  0x000000e0u
-#define SENSOR_STATUS_BAROMETER_OFFSET 5u
-#define SENSOR_STATUS_ACCEL_GYRO_MASK 0x00000700u
-#define SENSOR_STATUS_ACCEL_GYRO_OFFSET 8u
-#define SENSOR_STATUS_MAGNETOMETER_MASK 0x00003800u
-#define SENSOR_STATUS_MAGNETOMETER_OFFSET 11u
-#define SENSOR_STATUS_UNUSED_MASK  0xC000u
 
 #define UPDATED_ACCEL 0x01u
 #define UPDATED_GYRO 0x02u
@@ -173,6 +161,7 @@ enum rx_buf_parse_state_t {
 static struct sensor_packet_t packet;
 static struct control_packet_t control;
 static struct cmd_packet_t cmd;
+static uint16_t pwm_state[4];
 static uint8_t outbuf[OUTBUF_LEN];
 
 static uint8_t rx_buf[RX_BUF_LEN];
@@ -212,24 +201,21 @@ void comms_set_cpu_status(uint32_t cycles_used) {
     packet.cpu_load = proportion_used;
 }
 
+/*
+These are all nops because there's currently no room in the packet for the
+status value -- the FCS doesn't check sensor status anyway, it only considers
+whether or not the readings are available.
+*/
 void comms_set_gps_state(uint8_t status) {
-    packet.status &= ~SENSOR_STATUS_GPS_MASK;
-    packet.status |= status << SENSOR_STATUS_GPS_OFFSET;
 }
 
 void comms_set_magnetometer_state(uint8_t status) {
-    packet.status &= ~SENSOR_STATUS_MAGNETOMETER_MASK;
-    packet.status |= status << SENSOR_STATUS_MAGNETOMETER_OFFSET;
 }
 
 void comms_set_accel_gyro_state(uint8_t status) {
-    packet.status &= ~SENSOR_STATUS_ACCEL_GYRO_MASK;
-    packet.status |= status << SENSOR_STATUS_ACCEL_GYRO_OFFSET;
 }
 
 void comms_set_barometer_state(uint8_t status) {
-    packet.status &= ~SENSOR_STATUS_BAROMETER_MASK;
-    packet.status |= status << SENSOR_STATUS_BAROMETER_OFFSET;
 }
 
 void comms_set_mag_xyz(int16_t x, int16_t y, int16_t z) {
@@ -305,6 +291,10 @@ void comms_set_gpin_state(uint8_t v) {
 
     packet.gpin_state =
         (packet.gpin_state & 0xf0u) | (v & 0x0fu);
+}
+
+void comms_set_pwm_values(uint16_t values[4]) {
+    memcpy(pwm_state, values, sizeof(pwm_state));
 }
 
 void comms_set_gps_pv(int32_t lat, int32_t lng, int32_t alt, int32_t vn,
@@ -394,6 +384,9 @@ uint16_t comms_tick(void) {
     } else {
         packet.tick++;
     }
+
+    /* Set the PWM value for the appropriate channel (packet.tick % 4) */
+    packet.pwm_in = pwm_state[packet.tick % 4u];
 
     /* Turn LED1 on if we haven't seen each of the sensors updated this second
        */

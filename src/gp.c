@@ -52,6 +52,23 @@ static uint32_t gp_adc_last_sample_idx;
 static void gp_set_pins(uint32_t pin_values);
 static uint32_t gp_get_pins(void);
 
+static uint8_t gp_pwm_input_state;
+static uint32_t gp_pwm_input_state_begin[GP_NUM_INPUTS];
+static uint16_t gp_pwm_input_values[GP_NUM_INPUTS];
+
+static void gp_pwm_check_inputs(void);
+
+/* Interrupt handler for PWM input */
+__attribute__((__interrupt__))
+static void gp_pwm_input_interrupt_handler (void)
+{
+    for (uint8_t i = 0; i < GP_NUM_INPUTS; i++) {
+        gpio_clear_pin_interrupt_flag(gp_input_pins[i]);
+    }
+
+    gp_pwm_check_inputs();
+}
+
 void gp_init(void) {
     gpio_local_init();
 
@@ -72,6 +89,18 @@ void gp_init(void) {
     gpio_configure_pin(LED1_GPIO, GPIO_DIR_OUTPUT | GPIO_INIT_HIGH);
     gpio_configure_pin(LED2_GPIO, GPIO_DIR_OUTPUT | GPIO_INIT_HIGH);
     gpio_configure_pin(LED3_GPIO, GPIO_DIR_OUTPUT | GPIO_INIT_HIGH);
+
+    /* Clear out input states and enable PWM input interrupts */
+    gp_pwm_input_state = 0;
+    for (uint8_t i = 0; i < GP_NUM_INPUTS; i++) {
+        gp_pwm_input_state_begin[i] = 0;
+        gp_pwm_input_values[i] = 0;
+
+        gpio_enable_pin_interrupt(gp_input_pins[i], GPIO_PIN_CHANGE);
+        INTC_register_interrupt(&gp_pwm_input_interrupt_handler,
+            AVR32_GPIO_IRQ_0 + (gp_input_pins[i] / 8), AVR32_INTC_INT0);
+
+    }
 
     /* Initialize ADCs */
 
@@ -144,6 +173,9 @@ void gp_tick(void) {
 
     /* Update input values */
     comms_set_gpin_state((uint8_t)(gp_get_pins() & 0xffu));
+
+    /* Output PWM input values */
+    comms_set_pwm_values(gp_pwm_input_values);
 
     /* Get ADC values from sample data */
     uint32_t adc_totals[GP_NUM_ADCS];
@@ -249,4 +281,41 @@ static uint32_t gp_get_pins(void) {
         result |= gpio_local_get_pin_value(gp_input_pins[i]) << i;
     }
     return result;
+}
+
+static void gp_pwm_check_inputs(void) {
+    /* Check PWM input pins; if there's a state change, reset the current
+       count. Normally called from interrupt. */
+    uint32_t cur_state = gp_get_pins(),
+             pins_changed = cur_state ^ gp_pwm_input_state;
+
+    if (pins_changed) {
+        uint32_t count = Get_system_register(AVR32_COUNT);
+
+        for (uint8_t i = 0; i < GP_NUM_INPUTS; i++) {
+            if (pins_changed & (1u << i)) {
+                /* If the last input state was high, update the PWM value
+                   according to the delta */
+                if (gp_pwm_input_state & (1u << i)) {
+                    uint32_t delta = count - gp_pwm_input_state_begin[i];
+
+                    /* Now we have number of cycles the input was high for;
+                       we need a mapping from 0.85-2.15ms to the range
+                       [0, 65535]. */
+                    if (delta <= 42829u) {
+                        gp_pwm_input_values[i] = 0;
+                    } else if (delta >= 108264u) {
+                        gp_pwm_input_values[i] = 65535u;
+                    } else {
+                        gp_pwm_input_values[i] = (delta - 42829u) & 0xffffu;
+                    }
+                }
+
+                gp_pwm_input_state_begin[i] = count;
+            }
+        }
+
+        /* Update current input state */
+        gp_pwm_input_state = cur_state & 0xfu;
+    }
 }
