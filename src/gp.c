@@ -72,14 +72,21 @@ static void gp_pwm_input_interrupt_handler (void)
 void gp_init(void) {
     gpio_local_init();
 
-    /* set GPIO pin configuration on inputs and outputs */
+    /* Set GPIO pin configuration on outputs */
     for (uint8_t i = 0; i < GP_NUM_OUTPUTS; i++) {
         gpio_configure_pin(gp_output_pins[i], GPIO_DIR_OUTPUT);
     }
-    for (uint8_t i = 0; i < GP_NUM_INPUTS; i++) {
-        /* FIXME: check whether or not pulldown should be enabled */
-        gpio_configure_pin(gp_input_pins[i], GPIO_DIR_INPUT | GPIO_PULL_DOWN);
-    }
+
+    /*
+    Enable pull-ups on GPIN 0, the paylod presence detect, which pulls the
+    line low when active.
+    */
+    gpio_configure_pin(gp_input_pins[0], GPIO_DIR_INPUT | GPIO_PULL_UP);
+
+    /* PWM inputs are pulled down. */
+    gpio_configure_pin(gp_input_pins[1], GPIO_DIR_INPUT | GPIO_PULL_DOWN);
+    gpio_configure_pin(gp_input_pins[2], GPIO_DIR_INPUT | GPIO_PULL_DOWN);
+    gpio_configure_pin(gp_input_pins[3], GPIO_DIR_INPUT | GPIO_PULL_DOWN);
 
     gp_set_pins(0);
 
@@ -99,7 +106,6 @@ void gp_init(void) {
         gpio_enable_pin_interrupt(gp_input_pins[i], GPIO_PIN_CHANGE);
         INTC_register_interrupt(&gp_pwm_input_interrupt_handler,
             AVR32_GPIO_IRQ_0 + (gp_input_pins[i] / 8), AVR32_INTC_INT0);
-
     }
 
     /* Initialize ADCs */

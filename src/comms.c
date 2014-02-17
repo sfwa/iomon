@@ -294,7 +294,10 @@ void comms_set_gpin_state(uint8_t v) {
 }
 
 void comms_set_pwm_values(uint16_t values[4]) {
-    memcpy(pwm_state, values, sizeof(pwm_state));
+	/* GPIO 0 is payload detect; the other pins are reversed. */
+	pwm_state[0] = values[3];
+	pwm_state[1] = values[2];
+	pwm_state[2] = values[1];
 }
 
 void comms_set_gps_pv(int32_t lat, int32_t lng, int32_t alt, int32_t vn,
@@ -386,7 +389,9 @@ uint16_t comms_tick(void) {
     }
 
     /* Set the PWM value for the appropriate channel (packet.tick % 4) */
-    packet.pwm_in = pwm_state[packet.tick % 4u];
+    uint8_t pwm_channel = packet.tick % 4u;
+    packet.gpin_state = (packet.gpin_state & 0x0fu) + (pwm_channel << 4u);
+    packet.pwm_in = pwm_state[pwm_channel];
 
     /* Turn LED1 on if we haven't seen each of the sensors updated this second
        */
