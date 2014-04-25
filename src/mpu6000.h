@@ -20,13 +20,13 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-#ifndef _MPU6050_H_
-#define _MPU6050_H_
+#ifndef _MPU6000_H_
+#define _MPU6000_H_
 
-void mpu6050_init(void);
-void mpu6050_tick(void);
+void mpu6000_init(void);
+void mpu6000_tick(void);
 
-#define accel_gyro_init mpu6050_init
-#define accel_gyro_tick mpu6050_tick
+#define accel_gyro_init mpu6000_init
+#define accel_gyro_tick mpu6000_tick
 
 #endif

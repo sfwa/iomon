@@ -24,15 +24,13 @@ SOFTWARE.
 #include <asf.h>
 #include <avr32/io.h>
 #include <string.h>
-#include "i2cdevice.h"
 #include "comms.h"
-#include "mpu6050.h"
+#include "spidevice.h"
+#include "mpu6000.h"
 
-static uint8_t mpu6050_inbuf[14];
-
-static struct twim_transaction_t init_sequence[] = {
+static struct spim_transaction_t init_sequence[] = {
     /*
-    Device address, TX byte count, TX bytes (0-4), RX byte count, RX buffer
+    TX byte count, TX bytes (0-4), RX byte count, RX buffer
 
     With this configuration, accel and gyro are sampled at 8kHz with
     accelerometer LPF off (260Hz), gyro LPF off (256Hz), accel latency at 0ms
@@ -41,81 +39,88 @@ static struct twim_transaction_t init_sequence[] = {
     Full-scale on accel is 8g, and gyro is 500deg/s.
     */
 
+    /* Write 0x15 to USER_CTRL -- disables I2C interface and resets FIFO and
+       signal path. */
+    {2u, {0x6au | 0x80u, 0x15u}, {0, 0}},
     /* Write 0x02 to RA_PWR_MGMT_1 -- sets clock source to gyro w/ PLL */
-    {MPU6050_DEVICE_ADDR, 2u, {0x6bu, 0x02u}, 0, NULL},
+    {2u, {0x6bu | 0x80u, 0x02u}, {0, 0}},
     /* Write 0x00 to RA_SMPLRT_DIV -- 8000/(1+0) = 8kHz */
-    {MPU6050_DEVICE_ADDR, 2u, {0x19u, 0x00u}, 0, NULL},
+    {2u, {0x19u | 0x80u, 0x00u}, {0, 0}},
     /* Write 0x00 to RA_CONFIG -- disable FSync, no/256Hz low-pass */
-    {MPU6050_DEVICE_ADDR, 2u, {0x1au, 0x00u}, 0, NULL},
+    {2u, {0x1au | 0x80u, 0x00u}, {0, 0}},
     /* Write 0x08 to RA_GYRO_CONFIG -- no self test, scale 500deg/s */
-    {MPU6050_DEVICE_ADDR, 2u, {0x1bu, 0x08u}, 0, NULL},
+    {2u, {0x1bu | 0x80u, 0x08u}, {0, 0}},
     /* Write 0x10 to RA_ACCEL_CONFIG -- no self test, scale of +-8g, no HPF */
-    {MPU6050_DEVICE_ADDR, 2u, {0x1cu, 0x10u}, 0, NULL},
+    {2u, {0x1cu | 0x80u, 0x10u}, {0, 0}},
     /* Write 0x00 to RA_SIGNAL_PATH_RESET -- reset sensor signal paths */
-    {MPU6050_DEVICE_ADDR, 2u, {0x68u, 0x00u}, 0, NULL},
-    TWIM_TRANSACTION_SENTINEL
+    {2u, {0x68u | 0x80u, 0x00u}, {0, 0}},
+    SPIM_TRANSACTION_SENTINEL
 };
 
-static struct twim_transaction_t read_sequence[] = {
+static struct spim_transaction_t read_sequence[] = {
     /* Read 14 bytes from RA_ACCEL_XOUT_H -- returns:
        AX.H, AX.L, AY.H, AY.L, AZ.H, AZ.L,
        TEMP.H, TEMP.L,
        GX.H, GX.L, GY.H, GY.L, GZ.H, GZ.L */
-    {MPU6050_DEVICE_ADDR, 1u, {0x3bu}, 14u, mpu6050_inbuf},
-    TWIM_TRANSACTION_SENTINEL
+    {15u, {0x3bu, 0}, {0}},
+    SPIM_TRANSACTION_SENTINEL
 };
 
-static struct i2c_device_t mpu6050 = {
-    .speed = 400000u,
+static struct spi_device_t mpu6000 = {
+    .speed = 1000000u,
     .power_delay = 100u,
     .init_timeout = 150u,
     .read_timeout = 5u,
 
-    .sda_pin_id = MPU6050_TWI_TWD_PIN,
-    .sda_function = MPU6050_TWI_TWD_FUNCTION,
-    .scl_pin_id = MPU6050_TWI_TWCK_PIN,
-    .scl_function = MPU6050_TWI_TWCK_FUNCTION,
-    .enable_pin_id = MPU6050_ENABLE_PIN,
-    .sysclk_id = MPU6050_TWI_SYSCLK,
+    .miso_pin_id = MPU6000_SPI_MISO_PIN,
+    .miso_function = MPU6000_SPI_MISO_FUNCTION,
+    .mosi_pin_id = MPU6000_SPI_MOSI_PIN,
+    .mosi_function = MPU6000_SPI_MOSI_FUNCTION,
+    .cs_pin_id = MPU6000_SPI_CS_PIN,
+    .cs_function = MPU6000_SPI_CS_FUNCTION,
+    .clk_pin_id = MPU6000_SPI_CLK_PIN,
+    .clk_function = MPU6000_SPI_CLK_FUNCTION,
+    .enable_pin_id = MPU6000_ENABLE_PIN,
+    .sysclk_id = MPU6000_SPI_SYSCLK,
 
-    .twim_cfg = {
-        .twim = MPU6050_TWI,
-        .tx_pdca_num = PDCA_CHANNEL_MPU6050_TX,
-        .rx_pdca_num = PDCA_CHANNEL_MPU6050_RX,
-        .tx_pid = MPU6050_TWI_PDCA_PID_TX,
-        .rx_pid = MPU6050_TWI_PDCA_PID_RX
+    .spim_cfg = {
+        .spim = MPU6000_SPI,
+        .tx_pdca_num = PDCA_CHANNEL_MPU6000_TX,
+        .rx_pdca_num = PDCA_CHANNEL_MPU6000_RX,
+        .tx_pid = MPU6000_SPI_PDCA_PID_TX,
+        .rx_pid = MPU6000_SPI_PDCA_PID_RX
     },
 
     .init_sequence = init_sequence,
     .read_sequence = read_sequence
 };
 
-void mpu6050_init(void) {
-    i2c_device_init(&mpu6050);
+void mpu6000_init(void) {
+    spi_device_init(&mpu6000);
 }
 
-void mpu6050_tick(void) {
-    i2c_device_tick(&mpu6050);
-    comms_set_accel_gyro_state((uint8_t)mpu6050.state);
+void mpu6000_tick(void) {
+    spi_device_tick(&mpu6000);
+    comms_set_accel_gyro_state((uint8_t)mpu6000.state);
 
-    if (mpu6050.state == I2C_READ_SEQUENCE) {
-        enum twim_transaction_result_t result;
-        result = twim_run_sequence(&(mpu6050.twim_cfg), mpu6050.read_sequence,
+    if (mpu6000.state == SPI_READ_SEQUENCE) {
+        enum spim_transaction_result_t result;
+        result = spim_run_sequence(&(mpu6000.spim_cfg), mpu6000.read_sequence,
             0);
 
-        if (result == TWIM_TRANSACTION_EXECUTED) {
+        if (result == SPIM_TRANSACTION_EXECUTED) {
             /* Convert the result and update the comms module */
             int16_t data[7];
-            memcpy(data, mpu6050_inbuf, sizeof(data));
+            memcpy(data, &read_sequence[0].rx_buf[1], sizeof(data));
 
             comms_set_accel_gyro_temp(data[3]);
             comms_set_accel_xyz(data[0], data[1], data[2]);
             comms_set_gyro_xyz(data[4], data[5], data[6]);
 
-            mpu6050.state_timer = 0;
+            mpu6000.state_timer = 0;
             /* Start the next read to make sure there are values ready
                next tick */
-            twim_run_sequence(&(mpu6050.twim_cfg), mpu6050.read_sequence, 0);
+            spim_run_sequence(&(mpu6000.spim_cfg), mpu6000.read_sequence, 0);
         }
     }
 }
