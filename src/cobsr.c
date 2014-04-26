@@ -43,7 +43,8 @@ uint32_t dst_buf_len, const uint8_t * src_ptr, uint32_t src_len) {
     Assert(src_ptr);
     Assert(dst_buf_len <= 256u);
     Assert(src_len <= 256u);
-    Assert(dst_buf_ptr + dst_buf_len < src_ptr || dst_buf_ptr > src_ptr + src_len);
+    Assert(dst_buf_ptr + dst_buf_len < src_ptr ||
+           dst_buf_ptr > src_ptr + src_len);
 
 
     struct cobsr_encode_result result       = { 0, COBSR_ENCODE_OK };
@@ -88,16 +89,19 @@ uint32_t dst_buf_len, const uint8_t * src_ptr, uint32_t src_len) {
         }
     }
 
-    /* We've reached the end of the source data (or possibly run out of output buffer)
-     * Finalise the remaining output. In particular, write the code (length) byte.
-     *
-     * For COBS/R, the final code (length) byte is special: if the final data byte is
-     * greater than or equal to what would normally be the final code (length) byte,
-     * then replace the final code byte with the final data byte, and remove the final
-     * data byte from the end of the sequence. This saves one byte in the output.
-     *
-     * Update the pointer to calculate the final output length.
-     */
+    /*
+    We've reached the end of the source data (or possibly run out of output
+    buffer). Finalise the remaining output. In particular, write the code
+    (length) byte.
+
+    For COBS/R, the final code (length) byte is special: if the final data
+    byte is greater than or equal to what would normally be the final code
+    (length) byte, then replace the final code byte with the final data byte,
+    and remove the final data byte from the end of the sequence. This saves
+    one byte in the output.
+
+    Update the pointer to calculate the final output length.
+    */
     if (dst_code_write_ptr >= dst_buf_end_ptr) {
         /* We've run out of output buffer to write the code byte. */
         result.status |= COBSR_ENCODE_OUT_BUFFER_OVERFLOW;

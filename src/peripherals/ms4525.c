@@ -25,8 +25,9 @@ SOFTWARE.
 #include <avr32/io.h>
 #include <string.h>
 #include "comms.h"
-#include "i2cdevice.h"
+#include "drivers/i2cdevice.h"
 #include "ms4525.h"
+#include "plog/parameter.h"
 
 static uint8_t data_buf[4];
 
@@ -72,43 +73,42 @@ void ms4525_init(void) {
 }
 
 void ms4525_tick(void) {
-    i2c_device_tick(&ms4525);
-    comms_set_pitot_state((uint8_t)ms4525.state);
+    uint16_t pressure, temp;
+    uint8_t status;
+    struct fcs_parameter_t param;
 
+    i2c_device_tick(&ms4525);
     if (ms4525.state != I2C_READ_SEQUENCE) {
         return;
     }
 
     enum twim_transaction_result_t result;
     result = twim_run_sequence(&ms4525.twim_cfg, ms4525.read_sequence,
-            ms4525.sequence_idx);
+                               ms4525.sequence_idx);
     if (result != TWIM_TRANSACTION_EXECUTED) {
         return;
     }
 
-    ms4525.sequence_idx++;
+    /* Convert the result and update the comms module */
+    if (ms4525.sequence_idx == 1u) {
+        ms4525.sequence_idx = 0;
 
-    uint16_t pressure, temp;
-    uint8_t status;
-    switch (ms4525.sequence_idx) {
-        case 0u:
-            break;
-        case 1u:
-            /* Convert the result and update the comms module */
-            status = (data_buf[0] >> 6u) & 0x3u;
-            pressure = ((data_buf[0] << 8u) + data_buf[1]) & 0x3FFFu;
-            temp = ((data_buf[2] << 8u) + data_buf[3]) & 0x3FFFu;
+        status = (data_buf[0] >> 6u) & 0x3u;
+        pressure = ((data_buf[0] << 8u) + data_buf[1]) & 0x3FFFu;
+        temp = ((data_buf[2] << 8u) + data_buf[3]) & 0x3FFFu;
 
-            if (status == 0) {
-                comms_set_pitot(pressure);
-                i2c_device_state_transition(&ms4525, I2C_READ_SEQUENCE);
-            } else {
-                /* Something went wrong */
-                i2c_device_state_transition(&ms4525, I2C_POWERING_DOWN);
-            }
-            break;
-        default:
-            MS4525Assert(false);
-            break;
+        if (status == 0) {
+            fcs_parameter_set_header(&param, FCS_VALUE_UNSIGNED, 16u, 2u);
+            fcs_parameter_set_type(&param, FCS_PARAMETER_PITOT);
+            fcs_parameter_set_device_id(&param, 0);
+            param.data.i16[0] = swap16(pressure);
+            param.data.i16[1] = swap16(temp);
+            (void)fcs_log_add_parameter(&comms_out_log, &param);
+        } else {
+            /* Something went wrong */
+            i2c_device_state_transition(&ms4525, I2C_POWERING_DOWN);
+        }
+    } else {
+        ms4525.sequence_idx++;
     }
 }

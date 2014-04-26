@@ -23,12 +23,13 @@ SOFTWARE.
 
 #include <asf.h>
 #include "comms.h"
-#include "gp.h"
-#include "pwm.h"
-#include "ubx_gps.h"
-#include "ms5611.h"
-#include "hmc5883.h"
-#include "mpu6050.h"
+#include "peripherals/gp.h"
+#include "peripherals/pwm.h"
+#include "peripherals/ubx_gps.h"
+#include "peripherals/ms5611.h"
+#include "peripherals/hmc5883.h"
+#include "peripherals/mpu6000.h"
+#include "peripherals/ms4525.h"
 
 int main(void) {
     irq_initialize_vectors();
@@ -63,6 +64,7 @@ int main(void) {
     accel_gyro_init();
     barometer_init();
     magnetometer_init();
+    pitot_init();
     gps_init();
 
     /*
@@ -98,6 +100,7 @@ int main(void) {
         accel_gyro_tick();
         barometer_tick();
         magnetometer_tick();
+        pitot_tick();
         gps_tick();
 
         /* Communications input/output */

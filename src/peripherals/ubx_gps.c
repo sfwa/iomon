@@ -25,8 +25,22 @@ SOFTWARE.
 #include <string.h>
 #include "comms.h"
 #include "ubx_gps.h"
+#include "plog/parameter.h"
 
 static void ubx_process_latest_msg(void);
+
+inline static int16_t clamp_s16(int32_t v) {
+    int16_t result;
+    if (v < INT16_MIN) {
+        result = INT16_MIN;
+    } else if (v > INT16_MAX) {
+        result = INT16_MAX;
+    } else {
+        result = (int16_t)v;
+    }
+
+    return result;
+}
 
 enum ubx_state_t {
     UBX_POWERING_UP = 0,
@@ -93,8 +107,10 @@ struct ubx_nav_pvt_t {
 
 #define UBX_INBUF_SIZE 128u
 #define UBX_MSGBUF_SIZE 96u
-/* 2 prefix u8, 1 message class u8, 1 message ID u8, 1 paylod length u16,
-   one checksum u16 */
+/*
+2 prefix u8, 1 message class u8, 1 message ID u8, 1 paylod length u16, 1
+checksum u16
+*/
 #define UBX_PREFIX_LEN 6u
 #define UBX_SUFFIX_LEN 2u
 #define UBX_MSG_OVERHEAD (UBX_PREFIX_LEN + UBX_SUFFIX_LEN)
@@ -158,9 +174,9 @@ void ubx_init(void) {
     /* Configure GPS power enable */
     gpio_configure_pin(GPS_ENABLE_PIN, GPIO_DIR_OUTPUT | GPIO_INIT_LOW);
 
-    /* Enable USART -- start in 115200 baud mode */
+    /* Enable USART -- start in 921600 baud mode */
     usart_options_t usart_options;
-    usart_options.baudrate = 115200u;
+    usart_options.baudrate = 921600u;
     usart_options.charlength = 8u;
     usart_options.paritytype = USART_NO_PARITY;
     usart_options.stopbits = USART_1_STOPBIT;
@@ -171,13 +187,13 @@ void ubx_init(void) {
     UbxAssert(result == USART_SUCCESS);
 }
 
-/* ubx_tick is called once per millisecond to handle message parsing and
-   periodic tasks */
+/*
+ubx_tick is called once per millisecond to handle message parsing and periodic
+tasks
+*/
 void ubx_tick(void) {
     UbxAssert(Ubx_state_is_valid(ubx_state));
     UbxAssert(Ubx_parser_state_is_valid(ubx_inbuf_parse_state));
-
-    comms_set_gps_state((uint8_t)ubx_state);
 
     ubx_state_timer++;
 
@@ -207,8 +223,10 @@ void ubx_tick(void) {
     }
 
     if (bytes_avail > UBX_INBUF_SIZE / 2u) {
-        /* Either the PDCA isn't initialized, or there's been a possible
-           buffer overflow -- either way, re-initialize the RX PDCA channel. */
+        /*
+        Either the PDCA isn't initialized, or there's been a possible buffer
+        overflow -- either way, re-initialize the RX PDCA channel.
+        */
         inbuf_bytes_read = 0;
         bytes_avail = 0;
         ubx_inbuf_idx = 0;
@@ -272,8 +290,10 @@ void ubx_tick(void) {
             ubx_inbuf_msg_ck_a += ch;
             ubx_inbuf_msg_ck_b += ubx_inbuf_msg_ck_a;
         } else if (ubx_inbuf_parse_state == UBX_PARSER_LENGTH_1) {
-            /* Copy the current character into the buffer, and update the CRC
-               value if the character isn't part of the message suffix */
+            /*
+            Copy the current character into the buffer, and update the CRC
+            value if the character isn't part of the message suffix.
+            */
             ubx_msgbuf[ubx_msgbuf_idx] = ch;
             ubx_msgbuf_idx++;
 
@@ -284,8 +304,10 @@ void ubx_tick(void) {
             ubx_inbuf_msg_len_remaining--;
 
             if (ubx_inbuf_msg_len_remaining == 0u) {
-                /* Received all the message data -- confirm the checksum bytes
-                   are correct. */
+                /*
+                Received all the message data -- confirm the checksum bytes
+                are correct.
+                */
                 if (ubx_inbuf_msg_ck_a == ubx_msgbuf[ubx_msgbuf_idx - 2] &&
                         ubx_inbuf_msg_ck_b == ubx_msgbuf[ubx_msgbuf_idx - 1]) {
                     ubx_inbuf_parse_state = UBX_PARSER_DONE_MSG;
@@ -305,18 +327,23 @@ void ubx_tick(void) {
         ubx_state_transition(UBX_POWERING_DOWN);
     } else if (ubx_state_timer > UBX_POWER_DELAY) {
         if (ubx_state == UBX_POWERING_DOWN) {
-            /* The UBX_POWERING_DOWN state holds for 500ms, powers the GPS
-               unit back up, then transfers to UBX_POWERING_UP. */
+            /*
+            The UBX_POWERING_DOWN state holds for 500ms, powers the GPS unit
+            back up, then transfers to UBX_POWERING_UP.
+            */
             gpio_local_set_gpio_pin(GPS_ENABLE_PIN);
             ubx_state_transition(UBX_POWERING_UP);
         } else if (ubx_state == UBX_POWERING_UP) {
-            /* The UBX_POWERING_UP holds for 500ms, then transitions to the
-               navigating state. */
+            /*
+            The UBX_POWERING_UP holds for 500ms, then transitions to the
+            navigating state.
+            */
             ubx_last_fix_mode = GPS_FIX_NONE;
             ubx_state_transition(UBX_NAVIGATING);
         } else {
-            /* Not in a powering up/down state, so UBX_POWER_DELAY is
-               irrelevant */
+            /*
+            Not in a powering up/down state, so UBX_POWER_DELAY is irrelevant
+            */
         }
     } else {
         /* Not timed out, so continue processing normally */
@@ -330,10 +357,15 @@ void ubx_tick(void) {
 }
 
 static void ubx_process_latest_msg(void) {
-    /* UBX_NAVIGATING holds until more than UBX_TIMEOUT ticks elapse
-       between received packets. */
+    struct fcs_parameter_t param;
+    struct ubx_nav_pvt_t msg;
+    uint32_t pos_err;
+
+    /*
+    UBX_NAVIGATING holds until more than UBX_TIMEOUT ticks elapse between
+    received packets.
+    */
     if (Ubx_got_msg(UBX_MSG_NAV_PVT)) {
-        struct ubx_nav_pvt_t msg;
         memcpy(&msg, ubx_msgbuf, sizeof(msg));
 
         /* Translate fix modes */
@@ -348,19 +380,37 @@ static void ubx_process_latest_msg(void) {
             ubx_last_fix_mode = GPS_FIX_NONE;
         }
 
-        uint32_t pos_err = swap32(msg.hAcc);
+        pos_err = swap32(msg.hAcc);
         /* Convert to metres, rounding up */
         pos_err = (pos_err + 500u) / 1000u;
         if (pos_err > 0xffu) {
             pos_err = 0xffu;
         }
-        comms_set_gps_info(ubx_last_fix_mode, (uint8_t)(pos_err & 0xffu),
-                           msg.numSV);
+
+        fcs_parameter_set_header(&param, FCS_VALUE_UNSIGNED, 8u, 3u);
+        fcs_parameter_set_type(&param, FCS_PARAMETER_GPS_INFO);
+        fcs_parameter_set_device_id(&param, 0);
+        param.data.u8[0] = ubx_last_fix_mode;
+        param.data.u8[1] = (uint8_t)pos_err;
+        param.data.u8[2] = msg.numSV;
+        (void)fcs_log_add_parameter(&comms_out_log, &param);
 
         if (ubx_last_fix_mode != GPS_FIX_NONE) {
-            comms_set_gps_pv(swap32(msg.lat), swap32(msg.lon),
-                swap32(msg.height), swap32(msg.velN),
-                swap32(msg.velE), swap32(msg.velD));
+            fcs_parameter_set_header(&param, FCS_VALUE_SIGNED, 32u, 3u);
+            fcs_parameter_set_type(&param, FCS_PARAMETER_GPS_POSITION_LLA);
+            fcs_parameter_set_device_id(&param, 0);
+            param.data.i32[0] = swap32(msg.lat);
+            param.data.i32[1] = swap32(msg.lon);
+            param.data.i32[2] = swap32(msg.height);
+            (void)fcs_log_add_parameter(&comms_out_log, &param);
+
+            fcs_parameter_set_header(&param, FCS_VALUE_SIGNED, 16u, 3u);
+            fcs_parameter_set_type(&param, FCS_PARAMETER_GPS_VELOCITY_NED);
+            fcs_parameter_set_device_id(&param, 0);
+            param.data.i16[0] = swap16(clamp_s16(swap32(msg.velN)));
+            param.data.i16[1] = swap16(clamp_s16(swap32(msg.velE)));
+            param.data.i16[2] = swap16(clamp_s16(swap32(msg.velD)));
+            (void)fcs_log_add_parameter(&comms_out_log, &param);
         }
 
         ubx_state_timer = 0;

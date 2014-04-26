@@ -76,9 +76,10 @@ and the configuration has been saved to Flash. The required settings are:
 
 ### UBX
 
+* `CFG GNSS`: Disable SBAS and QZSS
 * `CFG MSG`: Enable NAV PVT on UART1
 * `CFG NAV5`: Set dynamics mode to `airborne <4g`
-* `CFG PRT`: Set UART1 to UBX in, UBX out, 57600 baud (or 115200 if supported)
+* `CFG PRT`: Set UART1 to UBX in, UBX out, 921600 baud
 * `CFG RATE`: Set measurement period to 250ms (or 100ms if supported)
 * `CFG CFG`: save to flash
 
@@ -107,10 +108,5 @@ GPS configuration requires u-blox [u-center](http://www.u-blox.com/en/evaluation
 
 ## Hardware installation
 
-1. Plug UART into CPU board;
-2. Connect servos and ESC to PWM output lines;
-3. Connect magnetometer to external I2C header;
-4. Connect battery I/V sensor to P9 header;
-5. Connect pitot to P7;
-6. Connect ultrasonic distance sensor to P8;
-7. Connect battery.
+1. Connect CPU board cable to 8-pin port;
+2. Connect cable harness to 30-pin port.

@@ -24,17 +24,20 @@ SOFTWARE.
 #include <asf.h>
 #include <avr32/io.h>
 #include <string.h>
-#include "i2cdevice.h"
+#include "drivers/i2cdevice.h"
 #include "comms.h"
 #include "hmc5883.h"
+#include "plog/parameter.h"
 
 static uint8_t hmc5883_inbuf[6];
 
 static struct twim_transaction_t init_sequence[] = {
-    /* Device address, TX byte count, TX bytes (0-4), RX byte count, RX buffer
-       With this configuration, full-scale is 2Ga (1090LSB/Ga sensitivity),
-       8 samples are averaged per measurement, and measurements are done in
-       single mode at ~125Hz. */
+    /*
+    Device address, TX byte count, TX bytes (0-4), RX byte count, RX buffer
+    With this configuration, full-scale is 2Ga (1090LSB/Ga sensitivity),
+    8 samples are averaged per measurement, and measurements are done in
+    single mode at ~125Hz.
+    */
 
     /* Write 0x78 to CRA -- 8 samples per measurement, 75Hz nominal, no bias */
     {HMC5883_DEVICE_ADDR, 2u, {0x00u, 0x78u}, 0, NULL},
@@ -46,8 +49,10 @@ static struct twim_transaction_t init_sequence[] = {
 static struct twim_transaction_t read_sequence[] = {
     /* Write single-measurement start to MODE register (0x01) */
     {HMC5883_DEVICE_ADDR, 2u, {0x02u, 0x01u}, 0, NULL},
-    /* Read 6 bytes from DXRA -- returns:
-       DXRA, DXRB, DZRA, DZRB, DYRA, DYRB (A=MSB, B=LSB) */
+    /*
+    Read 6 bytes from DXRA -- returns:
+    DXRA, DXRB, DZRA, DZRB, DYRA, DYRB (A=MSB, B=LSB)
+    */
     {HMC5883_DEVICE_ADDR, 1u, {0x03u}, 6u, hmc5883_inbuf},
     TWIM_TRANSACTION_SENTINEL
 };
@@ -91,54 +96,63 @@ void hmc5883_init(void) {
 
 void hmc5883_tick(void) {
     i2c_device_tick(&hmc5883);
-    comms_set_magnetometer_state((uint8_t)hmc5883.state);
 
-    if (hmc5883.state != I2C_READ_SEQUENCE) {
-        return;
+    if (hmc5883.state == I2C_READ_SEQUENCE) {
+        hmc5883_measure();
     }
-
-    hmc5883_measure();
 }
 
 void hmc5883_measure(void) {
+    struct fcs_parameter_t param;
+    enum twim_transaction_result_t read_result;
+    int16_t measurement[3];
+
     if (hmc5883.state_timer >= 8u) {
-        /* Wait until the 8th tick (~7ms after measurement command), then
-           execute a read operation to get the latest magnetometer
-           measurement. If the command completes, start another measurement. */
-        enum twim_transaction_result_t read_result;
-        read_result = twim_run_sequence(&(hmc5883.twim_cfg),
-            hmc5883.read_sequence, 1);
+        /*
+        Wait until the 8th tick (~7ms after measurement command), then execute
+        a read operation to get the latest magnetometer measurement. If the
+        command completes, start another measurement.
+        */
+        read_result = twim_run_sequence(&hmc5883.twim_cfg,
+                                        hmc5883.read_sequence, 1u);
 
         if (read_result == TWIM_TRANSACTION_EXECUTED) {
             /* Convert the result and update the comms module */
-            int16_t m[3];
-            memcpy(m, hmc5883_inbuf, sizeof(m));
+            memcpy(measurement, hmc5883_inbuf, sizeof(measurement));
 
-            /* Magnetic field over-/underflow -- should maybe adjust
-               sensitivity automatically? */
-            if (!  (-2048 <= m[0] && m[0] <= 2047 &&
-                    -2048 <= m[1] && m[1] <= 2047 &&
-                    -2048 <= m[2] && m[2] <= 2047)) {
+            /*
+            Magnetic field over-/underflow -- should maybe adjust sensitivity
+            automatically?
+            */
+            if (!  (-2048 <= measurement[0] && measurement[0] <= 2047 &&
+                    -2048 <= measurement[1] && measurement[1] <= 2047 &&
+                    -2048 <= measurement[2] && measurement[2] <= 2047)) {
                 /* Power the device down */
-                if (hmc5883.enable_pin_id) {
-                    gpio_local_clr_gpio_pin(hmc5883.enable_pin_id);
-                }
+                gpio_local_clr_gpio_pin(hmc5883.enable_pin_id);
                 i2c_device_state_transition(&hmc5883, I2C_POWERING_DOWN);
                 return;
             }
 
             /* Registers are ordered X, Z, Y */
-            comms_set_mag_xyz(m[0], m[2], m[1]);
+            fcs_parameter_set_header(&param, FCS_VALUE_SIGNED, 16u, 3u);
+            fcs_parameter_set_type(&param, FCS_PARAMETER_MAGNETOMETER_XYZ);
+            fcs_parameter_set_device_id(&param, 0);
+            param.data.i16[0] = swap16(measurement[0]);
+            param.data.i16[1] = swap16(measurement[2]);
+            param.data.i16[2] = swap16(measurement[1]);
+            (void)fcs_log_add_parameter(&comms_out_log, &param);
 
             hmc5883.state_timer = 0;
         }
     }
 
     if (hmc5883.state_timer == 0) {
-        /* At the start of the read state, or after each successful read,
-           generate a measurement command */
+        /*
+        At the start of the read state, or after each successful read,
+        generate a measurement command.
+        */
         hmc5883.read_sequence[0].txn_status = TWIM_TRANSACTION_STATUS_NONE;
         hmc5883.read_sequence[1].txn_status = TWIM_TRANSACTION_STATUS_NONE;
-        twim_run_sequence(&(hmc5883.twim_cfg), hmc5883.read_sequence, 0);
+        twim_run_sequence(&hmc5883.twim_cfg, hmc5883.read_sequence, 0);
     }
 }

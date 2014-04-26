@@ -25,8 +25,9 @@ SOFTWARE.
 #include <avr32/io.h>
 #include <string.h>
 #include "comms.h"
-#include "spidevice.h"
+#include "drivers/spidevice.h"
 #include "mpu6000.h"
+#include "plog/parameter.h"
 
 static struct spim_transaction_t init_sequence[] = {
     /*
@@ -100,27 +101,40 @@ void mpu6000_init(void) {
 }
 
 void mpu6000_tick(void) {
+    struct fcs_parameter_t param;
+    int16_t data[7];
+
     spi_device_tick(&mpu6000);
-    comms_set_accel_gyro_state((uint8_t)mpu6000.state);
 
-    if (mpu6000.state == SPI_READ_SEQUENCE) {
-        enum spim_transaction_result_t result;
-        result = spim_run_sequence(&(mpu6000.spim_cfg), mpu6000.read_sequence,
-            0);
+    if (mpu6000.state == SPI_READ_SEQUENCE &&
+            spim_run_sequence(&mpu6000.spim_cfg, mpu6000.read_sequence, 0) ==
+            SPIM_TRANSACTION_EXECUTED) {
+        /*
+        Convert the result and update the comms module.
+        Accel XYZ is in data[0:3], temp is in data [3], and gyro XYZ is in
+        data[4:7] (Python slice notation).
+        */
+        memcpy(data, &read_sequence[0].rx_buf[1], sizeof(data));
 
-        if (result == SPIM_TRANSACTION_EXECUTED) {
-            /* Convert the result and update the comms module */
-            int16_t data[7];
-            memcpy(data, &read_sequence[0].rx_buf[1], sizeof(data));
+        fcs_parameter_set_header(&param, FCS_VALUE_SIGNED, 16u, 2u);
+        fcs_parameter_set_type(&param, FCS_PARAMETER_ACCELEROMETER_XYZ);
+        fcs_parameter_set_device_id(&param, 0);
+        param.data.i16[0] = swap16(data[0]);
+        param.data.i16[1] = swap16(data[1]);
+        param.data.i16[2] = swap16(data[2]);
+        (void)fcs_log_add_parameter(&comms_out_log, &param);
 
-            comms_set_accel_gyro_temp(data[3]);
-            comms_set_accel_xyz(data[0], data[1], data[2]);
-            comms_set_gyro_xyz(data[4], data[5], data[6]);
+        fcs_parameter_set_type(&param, FCS_PARAMETER_GYROSCOPE_XYZ);
+        fcs_parameter_set_device_id(&param, 0);
+        param.data.i16[0] = swap16(data[4]);
+        param.data.i16[1] = swap16(data[5]);
+        param.data.i16[2] = swap16(data[6]);
+        (void)fcs_log_add_parameter(&comms_out_log, &param);
 
-            mpu6000.state_timer = 0;
-            /* Start the next read to make sure there are values ready
-               next tick */
-            spim_run_sequence(&(mpu6000.spim_cfg), mpu6000.read_sequence, 0);
-        }
+        mpu6000.state_timer = 0;
+        /*
+        Start the next read to make sure there are values ready next tick
+        */
+        spim_run_sequence(&mpu6000.spim_cfg, mpu6000.read_sequence, 0);
     }
 }

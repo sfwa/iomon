@@ -25,8 +25,9 @@ SOFTWARE.
 #include <avr32/io.h>
 #include <string.h>
 #include "comms.h"
-#include "i2cdevice.h"
+#include "drivers/i2cdevice.h"
 #include "ms5611.h"
+#include "plog/parameter.h"
 
 struct ms5611_read_t {
     int32_t temp; /* 1/100ths of a deg C, from -4000 to 8500 */
@@ -138,8 +139,10 @@ static inline struct ms5611_read_t ms5611_actual_pressure_temp(uint32_t d1,
     p = ((((int64_t)d1 * sens) / 2097152) - off) / 32768;
     MS5611Assert(1000 <= p && p <= 120000);
 
-    /* conversion from int64_t -> int32_t is safe because we already know it's
-       in the range [-4000, 8500] */
+    /*
+    Conversion from int64_t -> int32_t is safe because we already know it's
+    in the range [-4000, 8500]
+    */
     result.temp = temp;
     /* p is in the range [1000, 120000] */
     result.p = p;
@@ -153,8 +156,11 @@ void ms5611_init(void) {
 }
 
 void ms5611_tick(void) {
+    struct ms5611_read_t conv_result;
+    enum twim_transaction_result_t result;
+    struct fcs_parameter_t param;
+
     i2c_device_tick(&ms5611);
-    comms_set_barometer_state((uint8_t)ms5611.state);
 
     if (ms5611.state != I2C_READ_SEQUENCE) {
         return;
@@ -165,18 +171,18 @@ void ms5611_tick(void) {
         return;
     }
 
-    /* Attempt to read the value for the last requested sample; abort if not
-       ready. */
-    enum twim_transaction_result_t result;
+    /*
+    Attempt to read the value for the last requested sample; abort if not
+    ready.
+    */
     result = twim_run_sequence(&ms5611.twim_cfg, ms5611.read_sequence,
-            ms5611.sequence_idx);
+                               ms5611.sequence_idx);
     if (result != TWIM_TRANSACTION_EXECUTED) {
         return;
     }
 
     ms5611.sequence_idx++;
 
-    struct ms5611_read_t conv_result;
     switch (ms5611.sequence_idx) {
         case 1u:
         case 3u:
@@ -189,17 +195,27 @@ void ms5611_tick(void) {
                 d2_buf[2] + (d2_buf[1] << 8u) + (d2_buf[0] << 16u));
 
             if (!conv_result.err) {
-                comms_set_barometer_pressure_temp(conv_result.p,
-                    conv_result.temp);
+                fcs_parameter_set_header(&param, FCS_VALUE_UNSIGNED, 16u, 2u);
+                fcs_parameter_set_type(&param, FCS_PARAMETER_PRESSURE_TEMP);
+                fcs_parameter_set_device_id(&param, 0);
+				
+				/* 
+				Convert temp to range [0, 12500] by adding 4000; convert 
+				pressure to range [500, 60000] by dividing by 2.
+				*/
+                param.data.i16[0] = swap16(conv_result.p >> 1u);
+                param.data.i16[1] = swap16(conv_result.temp + 4000);
+                (void)fcs_log_add_parameter(&comms_out_log, &param);
             } else {
                 /* Something went wrong */
                 MS5611Assert(false);
             }
 
-            /* Do pressure conversions as frequently as possible, but a
-               temp conversion no more than 10 times per second --
-               just loop back to sequence idx #2, which is the D1 convert
-               command. */
+            /*
+            Do pressure conversions as frequently as possible, but a temp
+            conversion no more than 10 times per second -- just loop back to
+            sequence idx #2, which is the D1 convert command.
+            */
             if (ms5611.state_timer >= MS5611_TEMP_PERIOD) {
                 i2c_device_state_transition(&ms5611, I2C_READ_SEQUENCE);
             } else {

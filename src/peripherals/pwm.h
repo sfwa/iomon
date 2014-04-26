@@ -24,6 +24,7 @@ SOFTWARE.
 #define _PWM_H_
 
 #define PWM_NUM_OUTPUTS 4
+#define PWM_NUM_INPUTS 4
 
 void pwm_init(void);
 void pwm_tick(void);
