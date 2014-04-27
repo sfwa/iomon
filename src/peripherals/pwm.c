@@ -34,10 +34,16 @@ SOFTWARE.
 #define PWM_TRANSITION_PULSE_COUNT 5u
 
 
+#define PWM_FAILSAFE_INTERNAL_TICKS 10u
+#define PWM_FAILSAFE_EXTERNAL_TICKS 1500u
+
+
 static uint32_t pwm_out_values[PWM_NUM_OUTPUTS];
 static bool pwm_is_enabled = false;
 static bool pwm_use_internal = false;
 static uint32_t pwm_transition_pulses = 0;
+static uint32_t pwm_missed_internal_ticks = 0;
+static uint32_t pwm_missed_external_ticks = 0;
 
 static uint8_t pwm_input_state;
 static uint32_t pwm_input_state_begin[PWM_NUM_INPUTS];
@@ -47,6 +53,7 @@ static uint32_t pwm_input_pins[PWM_NUM_INPUTS] =
 
 
 static void pwm_check_inputs(void);
+static void pwm_terminate_flight(void);
 
 /* Interrupt handler for PWM input */
 __attribute__((__interrupt__))
@@ -76,6 +83,8 @@ void pwm_init(void) {
     /* Set internal mode */
     pwm_transition_pulses = 0;
     pwm_use_internal = false;
+    pwm_missed_internal_ticks = 0;
+    pwm_missed_external_ticks = 0;
 
     /* Clear out input states and enable PWM input interrupts */
     pwm_input_state = 0;
@@ -136,6 +145,7 @@ void pwm_tick(void) {
     struct fcs_parameter_t param;
     size_t i;
 
+    /* Handle internal/external control and failsafe logic */
     if (!pwm_use_internal) {
         if (fcs_parameter_find_by_type_and_device(
                 &comms_in_log, FCS_PARAMETER_CONTROL_SETPOINT, 0, &param)) {
@@ -144,9 +154,22 @@ void pwm_tick(void) {
             }
 
             pwm_set_values(internal_values);
+            pwm_missed_internal_ticks = 0;
+        } else {
+            pwm_missed_internal_ticks++;
+        }
+
+        if (pwm_missed_internal_ticks > PWM_FAILSAFE_INTERNAL_TICKS) {
+            pwm_terminate_flight();
         }
     } else {
         pwm_set_values(pwm_input_values);
+        pwm_missed_external_ticks = 0;
+        /* FIXME: detect R/C failsafe condition */
+
+        if (pwm_missed_external_ticks > PWM_FAILSAFE_EXTERNAL_TICKS) {
+            pwm_terminate_flight();
+        }
     }
 
     /*
@@ -282,4 +305,25 @@ static void pwm_check_inputs(void) {
         /* Update current input state */
         pwm_input_state = cur_state & 0xfu;
     }
+}
+
+static void pwm_terminate_flight(void) {
+    /*
+    Infinite loop to lock out any possibility of recovery -- reset the WDT
+    each time as well otherwise the system will restart itself.
+    */
+    static uint16_t pwm_values[PWM_NUM_OUTPUTS] = {0, 0, 65535u, 0};
+
+    LED_ON(LED3_GPIO);
+
+    irqflags_t flags = cpu_irq_save();
+    /* Take control of the PWM */
+    for (;;) {
+        pwm_enable();
+        pwm_set_values(pwm_values);
+        wdt_clear();
+    }
+    cpu_irq_restore(flags);
+
+    LED_OFF(LED3_GPIO);
 }
