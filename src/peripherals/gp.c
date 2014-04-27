@@ -144,7 +144,7 @@ void gp_tick(void) {
     struct fcs_parameter_t param;
 
     if (fcs_parameter_find_by_type_and_device(
-            &comms_in_log, FCS_PARAMETER_GP_OUT, 0, &param)) {
+            &cpu_conn.in_log, FCS_PARAMETER_GP_OUT, 0, &param)) {
         gp_set_pins(param.data.u8[0]);
     }
 
@@ -153,7 +153,7 @@ void gp_tick(void) {
     fcs_parameter_set_type(&param, FCS_PARAMETER_GP_IN);
     fcs_parameter_set_device_id(&param, 0);
     param.data.u8[0] = (uint8_t)(gp_get_pins() & 0xFFu);
-    (void)fcs_log_add_parameter(&comms_out_log, &param);
+    (void)fcs_log_add_parameter(&cpu_conn.out_log, &param);
 
     /* Get ADC values from sample data */
     uint32_t adc_totals[GP_NUM_ADCS];
@@ -243,7 +243,7 @@ void gp_tick(void) {
     fcs_parameter_set_device_id(&param, 0);
     param.data.u16[0] = adc_totals[GP_ADC_BATTERY_I];
     param.data.u16[1] = adc_totals[GP_ADC_BATTERY_V];
-    (void)fcs_log_add_parameter(&comms_out_log, &param);
+    (void)fcs_log_add_parameter(&cpu_conn.out_log, &param);
 }
 
 static void gp_set_pins(uint32_t pin_values) {

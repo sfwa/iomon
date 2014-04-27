@@ -20,18 +20,50 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
+#ifndef _COMMS_H_
+#define _COMMS_H_
+
+#include "plog/log.h"
+
 /*
 Inititalize communications -- set up USART and clear data structures.
 */
-uint32_t comms_init(void);
+void comms_init(void);
 
 /*
 Finalize the current tick's packet and send via PDC; handle parsing of input
 messages as well.
 */
-uint16_t comms_tick(void);
+void comms_tick(void);
 
 void comms_set_cpu_status(uint32_t cycles_used);
 
-extern struct fcs_log_t comms_out_log;
-extern struct fcs_log_t comms_in_log;
+#define RX_BUF_LEN 256u
+#define TX_BUF_LEN 256u
+
+struct connection_t {
+    struct fcs_log_t in_log;
+    struct fcs_log_t out_log;
+
+    uint8_t tx_buf[TX_BUF_LEN];
+
+    uint8_t rx_buf[RX_BUF_LEN];
+    uint8_t rx_buf_idx;
+
+    uint8_t rx_msg[FCS_LOG_SERIALIZED_LENGTH];
+    uint16_t rx_msg_idx;
+    enum {
+        RX_NO_MSG = 0,
+        RX_START,
+        RX_IN_MSG,
+        RX_END
+    } rx_parse_state;
+
+    uint16_t last_rx_packet_tick;
+    uint16_t last_tx_packet_tick;
+};
+
+extern struct connection_t cpu_conn;
+extern struct connection_t gcs_conn;
+
+#endif

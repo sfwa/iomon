@@ -205,7 +205,7 @@ void ms5611_tick(void) {
 				*/
                 param.data.i16[0] = swap16(conv_result.p >> 1u);
                 param.data.i16[1] = swap16(conv_result.temp + 4000);
-                (void)fcs_log_add_parameter(&comms_out_log, &param);
+                (void)fcs_log_add_parameter(&cpu_conn.out_log, &param);
             } else {
                 /* Something went wrong */
                 MS5611Assert(false);

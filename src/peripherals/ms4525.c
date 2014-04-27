@@ -104,7 +104,7 @@ void ms4525_tick(void) {
             fcs_parameter_set_device_id(&param, 0);
             param.data.i16[0] = swap16(pressure);
             param.data.i16[1] = swap16(temp);
-            (void)fcs_log_add_parameter(&comms_out_log, &param);
+            (void)fcs_log_add_parameter(&cpu_conn.out_log, &param);
         } else {
             /* Something went wrong */
             i2c_device_state_transition(&ms4525, I2C_POWERING_DOWN);

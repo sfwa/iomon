@@ -140,7 +140,7 @@ void hmc5883_measure(void) {
             param.data.i16[0] = swap16(measurement[0]);
             param.data.i16[1] = swap16(measurement[2]);
             param.data.i16[2] = swap16(measurement[1]);
-            (void)fcs_log_add_parameter(&comms_out_log, &param);
+            (void)fcs_log_add_parameter(&cpu_conn.out_log, &param);
 
             hmc5883.state_timer = 0;
         }

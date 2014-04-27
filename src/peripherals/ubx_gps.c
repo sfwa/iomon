@@ -393,7 +393,7 @@ static void ubx_process_latest_msg(void) {
         param.data.u8[0] = ubx_last_fix_mode;
         param.data.u8[1] = (uint8_t)pos_err;
         param.data.u8[2] = msg.numSV;
-        (void)fcs_log_add_parameter(&comms_out_log, &param);
+        (void)fcs_log_add_parameter(&cpu_conn.out_log, &param);
 
         if (ubx_last_fix_mode == GPS_FIX_3D) {
             fcs_parameter_set_header(&param, FCS_VALUE_SIGNED, 32u, 3u);
@@ -402,7 +402,7 @@ static void ubx_process_latest_msg(void) {
             param.data.i32[0] = msg.lat;
             param.data.i32[1] = msg.lon;
             param.data.i32[2] = msg.height;
-            (void)fcs_log_add_parameter(&comms_out_log, &param);
+            (void)fcs_log_add_parameter(&cpu_conn.out_log, &param);
 
             fcs_parameter_set_header(&param, FCS_VALUE_SIGNED, 16u, 3u);
             fcs_parameter_set_type(&param, FCS_PARAMETER_GPS_VELOCITY_NED);
@@ -410,7 +410,7 @@ static void ubx_process_latest_msg(void) {
             param.data.i16[0] = swap16(clamp_s16(swap32(msg.velN)));
             param.data.i16[1] = swap16(clamp_s16(swap32(msg.velE)));
             param.data.i16[2] = swap16(clamp_s16(swap32(msg.velD)));
-            (void)fcs_log_add_parameter(&comms_out_log, &param);
+            (void)fcs_log_add_parameter(&cpu_conn.out_log, &param);
         }
 
         ubx_state_timer = 0;

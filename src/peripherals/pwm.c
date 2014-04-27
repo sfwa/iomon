@@ -148,7 +148,7 @@ void pwm_tick(void) {
     /* Handle internal/external control and failsafe logic */
     if (!pwm_use_internal) {
         if (fcs_parameter_find_by_type_and_device(
-                &comms_in_log, FCS_PARAMETER_CONTROL_SETPOINT, 0, &param)) {
+                &cpu_conn.in_log, FCS_PARAMETER_CONTROL_SETPOINT, 0, &param)){
             for (i = 0; i < PWM_NUM_OUTPUTS; i++) {
                 internal_values[i] = swap16(param.data.u16[i]);
             }
@@ -186,14 +186,14 @@ void pwm_tick(void) {
     for (i = 0; i < PWM_NUM_INPUTS; i++) {
         param.data.u16[i] = swap16(pwm_input_values[i]);
     }
-    (void)fcs_log_add_parameter(&comms_out_log, &param);
+    (void)fcs_log_add_parameter(&cpu_conn.out_log, &param);
 
     /* Output control mode -- 1 for internal, 0 for external (R/C) */
     fcs_parameter_set_header(&param, FCS_VALUE_UNSIGNED, 8u, 1u);
     fcs_parameter_set_type(&param, FCS_PARAMETER_CONTROL_MODE);
     fcs_parameter_set_device_id(&param, 0);
     param.data.u8[0] = pwm_use_internal ? 1u : 0;
-    (void)fcs_log_add_parameter(&comms_out_log, &param);
+    (void)fcs_log_add_parameter(&cpu_conn.out_log, &param);
 
     /*
     Handle internal <-> external control transition -- wait for

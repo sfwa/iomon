@@ -122,14 +122,14 @@ void mpu6000_tick(void) {
         param.data.i16[0] = swap16(data[0]);
         param.data.i16[1] = swap16(data[1]);
         param.data.i16[2] = swap16(data[2]);
-        (void)fcs_log_add_parameter(&comms_out_log, &param);
+        (void)fcs_log_add_parameter(&cpu_conn.out_log, &param);
 
         fcs_parameter_set_type(&param, FCS_PARAMETER_GYROSCOPE_XYZ);
         fcs_parameter_set_device_id(&param, 0);
         param.data.i16[0] = swap16(data[4]);
         param.data.i16[1] = swap16(data[5]);
         param.data.i16[2] = swap16(data[6]);
-        (void)fcs_log_add_parameter(&comms_out_log, &param);
+        (void)fcs_log_add_parameter(&cpu_conn.out_log, &param);
 
         mpu6000.state_timer = 0;
         /*
