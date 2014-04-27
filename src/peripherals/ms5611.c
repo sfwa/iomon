@@ -61,8 +61,8 @@ static struct twim_transaction_t read_sequence[] = {
 static struct i2c_device_t ms5611 = {
     .speed = 100000u,
     .power_delay = 500u,
-    .init_timeout = 100u,
-    .read_timeout = 150u,
+    .init_timeout = 600u,
+    .read_timeout = 15u,
 
     .sda_pin_id = MS5611_TWI_TWD_PIN,
     .sda_function = MS5611_TWI_TWD_FUNCTION,
@@ -198,9 +198,9 @@ void ms5611_tick(void) {
                 fcs_parameter_set_header(&param, FCS_VALUE_UNSIGNED, 16u, 2u);
                 fcs_parameter_set_type(&param, FCS_PARAMETER_PRESSURE_TEMP);
                 fcs_parameter_set_device_id(&param, 0);
-				
-				/* 
-				Convert temp to range [0, 12500] by adding 4000; convert 
+
+				/*
+				Convert temp to range [0, 12500] by adding 4000; convert
 				pressure to range [500, 60000] by dividing by 2.
 				*/
                 param.data.i16[0] = swap16(conv_result.p >> 1u);

@@ -116,7 +116,7 @@ void mpu6000_tick(void) {
         */
         memcpy(data, &read_sequence[0].rx_buf[1], sizeof(data));
 
-        fcs_parameter_set_header(&param, FCS_VALUE_SIGNED, 16u, 2u);
+        fcs_parameter_set_header(&param, FCS_VALUE_SIGNED, 16u, 3u);
         fcs_parameter_set_type(&param, FCS_PARAMETER_ACCELEROMETER_XYZ);
         fcs_parameter_set_device_id(&param, 0);
         param.data.i16[0] = swap16(data[0]);

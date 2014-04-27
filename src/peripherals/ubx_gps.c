@@ -105,8 +105,8 @@ struct ubx_nav_pvt_t {
     uint32_t reserved3;
 } __attribute__ ((packed));
 
-#define UBX_INBUF_SIZE 128u
-#define UBX_MSGBUF_SIZE 96u
+#define UBX_INBUF_SIZE 256u
+#define UBX_MSGBUF_SIZE 256u
 /*
 2 prefix u8, 1 message class u8, 1 message ID u8, 1 paylod length u16, 1
 checksum u16
@@ -395,13 +395,13 @@ static void ubx_process_latest_msg(void) {
         param.data.u8[2] = msg.numSV;
         (void)fcs_log_add_parameter(&comms_out_log, &param);
 
-        if (ubx_last_fix_mode != GPS_FIX_NONE) {
+        if (ubx_last_fix_mode == GPS_FIX_3D) {
             fcs_parameter_set_header(&param, FCS_VALUE_SIGNED, 32u, 3u);
             fcs_parameter_set_type(&param, FCS_PARAMETER_GPS_POSITION_LLA);
             fcs_parameter_set_device_id(&param, 0);
-            param.data.i32[0] = swap32(msg.lat);
-            param.data.i32[1] = swap32(msg.lon);
-            param.data.i32[2] = swap32(msg.height);
+            param.data.i32[0] = msg.lat;
+            param.data.i32[1] = msg.lon;
+            param.data.i32[2] = msg.height;
             (void)fcs_log_add_parameter(&comms_out_log, &param);
 
             fcs_parameter_set_header(&param, FCS_VALUE_SIGNED, 16u, 3u);

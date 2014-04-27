@@ -39,8 +39,8 @@ peripheral device or support function:
 
 ## Function
 
-The `iomon` program is fundamentally an event loop which aggregates data
-received from devices via I2C, UART, ADC and GPIO interfaces, and transmits
+The `iomon` program is an event loop which aggregates data received from
+devices via I2C, SPI, UART, ADC and GPIO interfaces, and transmits
 it in packets to a processing device. No interrupts are used, and the
 per-packet processing time is guaranteed to be less than 1ms.
 
@@ -54,13 +54,8 @@ generally implement a state machine that handles:
 * The primary read sequence and any conversions necessary to obtain usable
   data.
 
-After sensor data is read, it is written to the sensor packet buffer via the
-appropriate `comms_set_*` routine; at the end of the event loop, the packet
-is sent via UART and serial interfaces. Different sizes of packet are sent,
-depending on the data written during that iteration of the loop; in
-particular, data from devices with a low refresh rate is not included in each
-frame of the output: therefore, the magnetometer, the GPS PVT solution and the
-GPS tracking status fields are not mandatory.
+After sensor data is read, it is written to the output parameter log; at the
+end of the event loop, the packet is sent via the UART.
 
 
 ## Configuration

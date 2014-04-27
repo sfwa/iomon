@@ -40,8 +40,8 @@ static struct twim_transaction_t read_sequence[] = {
 static struct i2c_device_t ms4525 = {
     .speed = 100000u,
     .power_delay = 100u,
-    .init_timeout = 30u,
-    .read_timeout = 30u,
+    .init_timeout = 200u,
+    .read_timeout = 15u,
 
     .sda_pin_id = MS4525_TWI_TWD_PIN,
     .sda_function = MS4525_TWI_TWD_FUNCTION,
@@ -92,6 +92,7 @@ void ms4525_tick(void) {
     /* Convert the result and update the comms module */
     if (ms4525.sequence_idx == 1u) {
         ms4525.sequence_idx = 0;
+        ms4525.state_timer = 0;
 
         status = (data_buf[0] >> 6u) & 0x3u;
         pressure = ((data_buf[0] << 8u) + data_buf[1]) & 0x3FFFu;

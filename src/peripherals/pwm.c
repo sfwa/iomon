@@ -28,14 +28,23 @@ SOFTWARE.
 #include "pwm.h"
 #include "plog/parameter.h"
 
+
+#define PWM_INTERNAL_TO_EXTERNAL_THRESHOLD 20000u
+#define PWM_EXTERNAL_TO_INTERNAL_THRESHOLD 40000u
+#define PWM_TRANSITION_PULSE_COUNT 5u
+
+
 static uint32_t pwm_out_values[PWM_NUM_OUTPUTS];
 static bool pwm_is_enabled = false;
+static bool pwm_use_internal = false;
+static uint32_t pwm_transition_pulses = 0;
 
 static uint8_t pwm_input_state;
 static uint32_t pwm_input_state_begin[PWM_NUM_INPUTS];
 static uint16_t pwm_input_values[PWM_NUM_INPUTS];
 static uint32_t pwm_input_pins[PWM_NUM_INPUTS] =
     {PWM_IN_0_PIN, PWM_IN_1_PIN, PWM_IN_2_PIN, PWM_IN_3_PIN};
+
 
 static void pwm_check_inputs(void);
 
@@ -63,6 +72,10 @@ void pwm_init(void) {
     gpio_enable_module_pin(PWM_2_PIN, PWM_2_FUNCTION);
     gpio_enable_module_pin(PWM_3_PIN, PWM_3_FUNCTION);
     sysclk_enable_pba_module(PWM_SYSCLK);
+
+    /* Set internal mode */
+    pwm_transition_pulses = 0;
+    pwm_use_internal = false;
 
     /* Clear out input states and enable PWM input interrupts */
     pwm_input_state = 0;
@@ -119,27 +132,29 @@ void pwm_init(void) {
 }
 
 void pwm_tick(void) {
-    uint16_t values[PWM_NUM_OUTPUTS];
+    uint16_t internal_values[PWM_NUM_OUTPUTS];
     struct fcs_parameter_t param;
     size_t i;
 
-    if (fcs_parameter_find_by_type_and_device(
-            &comms_in_log, FCS_PARAMETER_CONTROL_SETPOINT, 0, &param)) {
-        for (i = 0; i < PWM_NUM_OUTPUTS; i++) {
-            values[i] = swap16(param.data.u16[i]);
+    if (!pwm_use_internal) {
+        if (fcs_parameter_find_by_type_and_device(
+                &comms_in_log, FCS_PARAMETER_CONTROL_SETPOINT, 0, &param)) {
+            for (i = 0; i < PWM_NUM_OUTPUTS; i++) {
+                internal_values[i] = swap16(param.data.u16[i]);
+            }
+
+            pwm_set_values(internal_values);
         }
-
-        pwm_set_values(values);
-        /*
-        Enable PWM if it isn't already, and we've received at least some data
-        from the CPU (otherwise the values would still be 0).
-
-        We keep calling this even after it's enabled because the pin has to
-        be toggled low-high-low every 10ms otherwise the board will go into
-        bypass.
-        */
-        pwm_enable();
+    } else {
+        pwm_set_values(pwm_input_values);
     }
+
+    /*
+    We keep calling this even after it's enabled because the pin has to
+    be toggled low-high-low every 10ms otherwise the board will go into
+    bypass.
+    */
+    pwm_enable();
 
     /* Output PWM input values */
     fcs_parameter_set_header(&param, FCS_VALUE_UNSIGNED, 16u, PWM_NUM_INPUTS);
@@ -149,6 +164,31 @@ void pwm_tick(void) {
         param.data.u16[i] = swap16(pwm_input_values[i]);
     }
     (void)fcs_log_add_parameter(&comms_out_log, &param);
+
+    /* Output control mode -- 1 for internal, 0 for external (R/C) */
+    fcs_parameter_set_header(&param, FCS_VALUE_UNSIGNED, 8u, 1u);
+    fcs_parameter_set_type(&param, FCS_PARAMETER_CONTROL_MODE);
+    fcs_parameter_set_device_id(&param, 0);
+    param.data.u8[0] = pwm_use_internal ? 1u : 0;
+    (void)fcs_log_add_parameter(&comms_out_log, &param);
+
+    /*
+    Handle internal <-> external control transition -- wait for
+    PWM_TRANSITION_PULSE_COUNT pulses higher/lower than the threshold.
+    */
+    if (pwm_use_internal && pwm_input_values[3] <
+            PWM_INTERNAL_TO_EXTERNAL_THRESHOLD) {
+        pwm_transition_pulses++;
+    } else if (!pwm_use_internal && pwm_input_values[3] >
+            PWM_EXTERNAL_TO_INTERNAL_THRESHOLD) {
+        pwm_transition_pulses++;
+    } else {
+        pwm_transition_pulses = 0;
+    }
+
+    if (pwm_transition_pulses >= PWM_TRANSITION_PULSE_COUNT) {
+        pwm_use_internal = !pwm_use_internal;
+    }
 }
 
 void pwm_set_values(uint16_t pwms[PWM_NUM_OUTPUTS]) {
