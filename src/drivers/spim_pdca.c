@@ -73,7 +73,7 @@ void spim_pdca_init(struct spim_pdca_cfg_t *cfg, uint32_t speed_hz) {
     cfg->spim->cr = AVR32_SPI_CR_SWRST_MASK;
     cfg->spim->cr = AVR32_SPI_CR_FLUSHFIFO_MASK;
     /* Master mode, with fixed peripheral select set to 0b0111 (for CS3) */
-    cfg->spim->mr = AVR32_SPI_MR_MSTR_MASK | AVR32_SPI_MR_PS_MASK |
+    cfg->spim->mr = AVR32_SPI_MR_MSTR_MASK |
                     (0x7u << AVR32_SPI_MR_PCS_OFFSET);
     /* Configure CSR3, which is the control register for CS3. Set the clock
        divisor and set NCPHA = 1 to capture data on rising edge and change on
@@ -102,28 +102,40 @@ struct spim_transaction_t *txn) {
 
     irqflags_t flags = cpu_irq_save();
 
-    /* Reset the SPIM module */
+    /* Reset the SPIM FIFO */
     cfg->spim->idr = 0xffffffffu;
-    cfg->spim->cr = AVR32_SPI_CR_SPIEN_MASK;
+	cfg->spim->cr = AVR32_SPI_CR_SPIDIS_MASK;
     cfg->spim->cr = AVR32_SPI_CR_SWRST_MASK;
     cfg->spim->cr = AVR32_SPI_CR_FLUSHFIFO_MASK;
-    /* Clear SR */
-    cfg->spim->cr = AVR32_SPI_CR_SPIDIS_MASK;
+    /* Master mode, with fixed peripheral select set to 0b0111 (for CS3) */
+    cfg->spim->mr = AVR32_SPI_MR_MSTR_MASK | AVR32_SPI_MR_MODFDIS_MASK |
+                    (0x7u << AVR32_SPI_MR_PCS_OFFSET);
+    /* Configure CSR3, which is the control register for CS3. Set the clock
+       divisor and set NCPHA = 1 to capture data on rising edge and change on
+       falling edge. */
+	cfg->spim->csr0 = (0x30u << AVR32_SPI_CSR3_SCBR_OFFSET) |
+                      AVR32_SPI_CSR3_NCPHA_MASK | AVR32_SPI_CSR3_CSAAT_MASK;
+	cfg->spim->csr1 = (0x30u << AVR32_SPI_CSR3_SCBR_OFFSET) |
+                      AVR32_SPI_CSR3_NCPHA_MASK | AVR32_SPI_CSR3_CSAAT_MASK;
+	cfg->spim->csr2 = (0x30u << AVR32_SPI_CSR3_SCBR_OFFSET) |
+                      AVR32_SPI_CSR3_NCPHA_MASK | AVR32_SPI_CSR3_CSAAT_MASK;
+    cfg->spim->csr3 = (0x30u << AVR32_SPI_CSR3_SCBR_OFFSET) |
+                      AVR32_SPI_CSR3_NCPHA_MASK | AVR32_SPI_CSR3_CSAAT_MASK;
+	cfg->spim->cr = AVR32_SPI_CR_SPIEN_MASK;
+	
+	//cfg->spim->tdr = txn->tx_buf[0];
 
     /* Configure TX and RX PDCAs */
-    if (txn->txn_len) {
-        spim_pdca_enable(tx_pdca, txn->tx_buf, txn->txn_len, cfg->tx_pid);
-        spim_pdca_enable(rx_pdca, txn->rx_buf, txn->txn_len, cfg->rx_pid);
-    }
+    spim_pdca_enable(rx_pdca, txn->rx_buf, txn->txn_len, cfg->rx_pid);
+    rx_pdca->cr = AVR32_PDCA_TEN_MASK;
 
-    /* Enable master transfer */
-    cfg->spim->cr = AVR32_SPI_CR_SPIEN_MASK;
-
-    /* 2. Start transfer by enabling PDCA */
-    if (txn->txn_len) {
+    if (txn->txn_len > 0u) {
+        spim_pdca_enable(tx_pdca, &txn->tx_buf[0], txn->txn_len - 0u,
+                         cfg->tx_pid);
         tx_pdca->cr = AVR32_PDCA_TEN_MASK;
-        rx_pdca->cr = AVR32_PDCA_TEN_MASK;
     }
+	
+	//cfg->spim->cr = AVR32_SPI_CR_SPIEN_MASK;
 
     cpu_irq_restore(flags);
 }

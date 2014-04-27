@@ -31,5 +31,7 @@ messages as well.
 */
 uint16_t comms_tick(void);
 
+void comms_set_cpu_status(uint32_t cycles_used);
+
 extern struct fcs_log_t comms_out_log;
 extern struct fcs_log_t comms_in_log;

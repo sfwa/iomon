@@ -45,6 +45,12 @@ See https://github.com/bendyer/uav/wiki/IO-Board-Design
 #define CPU_TIMEOUT_TICKS 10u
 #define CPU_RESET_TICKS 200u
 
+#define UPDATED_ACCEL 0x01u
+#define UPDATED_BAROMETER 0x02u
+#define UPDATED_MAG 0x04u
+#define UPDATED_GPS 0x08u
+#define UPDATED_PITOT 0x10u
+
 enum rx_buf_parse_state_t {
     RX_NO_MSG = 0,
     RX_START,
@@ -79,6 +85,8 @@ void comms_set_cpu_status(uint32_t cycles_used) {
     if (proportion_used > 255u) {
         proportion_used = 255u;
     }
+
+    /* TODO: save this to measurement log */
 }
 
 uint32_t comms_init(void) {
@@ -122,6 +130,9 @@ uint32_t comms_init(void) {
         sysclk_get_pba_hz());
     CommsAssert(result == USART_SUCCESS);
 
+	fcs_log_init(&comms_out_log, FCS_LOG_TYPE_MEASUREMENT, 0);
+    fcs_log_init(&comms_in_log, FCS_LOG_TYPE_COMBINED, 0);
+
     return 0;
 }
 
@@ -129,17 +140,38 @@ uint16_t comms_tick(void) {
     size_t packet_len;
     irqflags_t flags;
     uint32_t bytes_read, bytes_avail;
+    struct fcs_parameter_t param;
+    volatile avr32_pdca_channel_t *pdca_channel;
 
-    volatile avr32_pdca_channel_t *pdca_channel =
-        &AVR32_PDCA.channel[PDCA_CHANNEL_CPU_RX];
-
-    /* Turn LED1 on if we haven't seen each of the sensors updated this second
-       */
     static uint8_t sensors_updated = 0;
-    if (last_tx_packet_tick % 1000 == 0) {
-        if (sensors_updated == (UPDATED_ACCEL | UPDATED_GYRO |
-                UPDATED_BAROMETER | UPDATED_MAG | UPDATED_GPS_POS |
-                UPDATED_GPS_INFO | UPDATED_ADC_GPIO)) {
+
+    if (fcs_parameter_find_by_type_and_device(
+            &comms_out_log, FCS_PARAMETER_ACCELEROMETER_XYZ, 0, &param)) {
+        sensors_updated |= UPDATED_ACCEL;
+    }
+    if (fcs_parameter_find_by_type_and_device(
+            &comms_out_log, FCS_PARAMETER_PRESSURE_TEMP, 0, &param)) {
+        sensors_updated |= UPDATED_BAROMETER;
+    }
+    if (fcs_parameter_find_by_type_and_device(
+            &comms_out_log, FCS_PARAMETER_MAGNETOMETER_XYZ, 0, &param)) {
+        sensors_updated |= UPDATED_MAG;
+    }
+    if (fcs_parameter_find_by_type_and_device(
+            &comms_out_log, FCS_PARAMETER_GPS_POSITION_LLA, 0, &param)) {
+        sensors_updated |= UPDATED_GPS;
+    }
+    if (fcs_parameter_find_by_type_and_device(
+            &comms_out_log, FCS_PARAMETER_PITOT, 0, &param)) {
+        sensors_updated |= UPDATED_PITOT;
+    }
+
+    /*
+    Turn LED1 on if we haven't seen each of the sensors updated this second
+    */
+    if (last_tx_packet_tick % 500 == 0) {
+        if (sensors_updated == (UPDATED_ACCEL | UPDATED_BAROMETER |
+                UPDATED_MAG | UPDATED_GPS | UPDATED_PITOT)) {
             LED_OFF(LED1_GPIO);
         } else {
             LED_ON(LED1_GPIO);
@@ -207,7 +239,8 @@ uint16_t comms_tick(void) {
         rx_buf_idx = 0;
         rx_parse_state = RX_NO_MSG;
 
-        irqflags_t flags = cpu_irq_save();
+        flags = cpu_irq_save();
+        pdca_channel = &AVR32_PDCA.channel[PDCA_CHANNEL_CPU_RX];
         pdca_channel->cr = AVR32_PDCA_TDIS_MASK;
         pdca_channel->mar = (uint32_t)rx_buf;
         pdca_channel->tcr = RX_BUF_LEN;
