@@ -60,6 +60,24 @@ struct connection_t gcs_conn;
 
 static uint16_t cpu_reset_countdown_tick;
 
+static enum fcs_parameter_type_t telemetry_feed_params[] = {
+    FCS_PARAMETER_ESTIMATED_POSITION_LLA,
+    FCS_PARAMETER_ESTIMATED_VELOCITY_NED,
+    FCS_PARAMETER_ESTIMATED_ATTITUDE_Q,
+    FCS_PARAMETER_ESTIMATED_WIND_VELOCITY_NED,
+    FCS_PARAMETER_ESTIMATED_POSITION_SD,
+    FCS_PARAMETER_ESTIMATED_VELOCITY_SD,
+    FCS_PARAMETER_ESTIMATED_ATTITUDE_SD,
+    FCS_PARAMETER_ESTIMATED_WIND_VELOCITY_SD,
+    FCS_PARAMETER_AHRS_MODE,
+    FCS_PARAMETER_GP_IN,
+    FCS_PARAMETER_CONTROL_STATUS,
+    FCS_PARAMETER_AHRS_STATUS,
+    FCS_PARAMETER_NAV_VERSION,
+    FCS_PARAMETER_NAV_PATH,
+    FCS_PARAMETER_LAST  /* terminator */
+};
+
 
 static void comms_process_conn_rx(struct connection_t *conn);
 static bool comms_process_conn_read(struct connection_t *conn,
@@ -126,7 +144,7 @@ void comms_init(void) {
 }
 
 void comms_tick(void) {
-    size_t packet_len;
+    size_t packet_len, i;
     irqflags_t flags;
     struct fcs_parameter_t param;
     volatile avr32_pdca_channel_t *pdca_channel;
@@ -170,6 +188,34 @@ void comms_tick(void) {
     comms_process_conn_rx(&cpu_conn);
     comms_process_conn_rx(&gcs_conn);
 
+    /* Prepare the telemetry packet for transfer over the telemetry UART */
+    fcs_log_init(&gcs_conn.out_log, FCS_LOG_TYPE_COMBINED,
+                 cpu_conn.last_tx_packet_tick);
+    for (i = 0; i < 100u && telemetry_feed_params[i] != FCS_PARAMETER_LAST;
+            i++) {
+        if (fcs_parameter_find_by_type_and_device(&cpu_conn.in_log,
+                                                  telemetry_feed_params[i], 0,
+                                                  &param)) {
+            fcs_log_add_parameter(&gcs_conn.out_log, &param);
+        }
+    }
+
+    packet_len = fcs_log_serialize(gcs_conn.tx_buf, sizeof(gcs_conn.tx_buf),
+                                   &gcs_conn.out_log);
+
+    flags = cpu_irq_save();
+    pdca_channel = &AVR32_PDCA.channel[PDCA_CHANNEL_AUX_TX];
+    pdca_channel->cr = AVR32_PDCA_TDIS_MASK;
+    pdca_channel->mar = (uint32_t)gcs_conn.tx_buf;
+    pdca_channel->tcr = packet_len;
+    pdca_channel->marr = 0;
+    pdca_channel->tcrr = 0;
+    pdca_channel->psr = AUX_USART_PDCA_PID_TX;
+    pdca_channel->mr = AVR32_PDCA_BYTE << AVR32_PDCA_SIZE_OFFSET;
+    pdca_channel->cr = AVR32_PDCA_ECLR_MASK | AVR32_PDCA_TEN_MASK;
+    pdca_channel->isr;
+    cpu_irq_restore(flags);
+
     /* Schedule the transfer over CPU and AUX UARTs */
     packet_len = fcs_log_serialize(cpu_conn.tx_buf, sizeof(cpu_conn.tx_buf),
                                    &cpu_conn.out_log);
@@ -182,17 +228,6 @@ void comms_tick(void) {
     pdca_channel->marr = 0;
     pdca_channel->tcrr = 0;
     pdca_channel->psr = CPU_USART_PDCA_PID_TX;
-    pdca_channel->mr = AVR32_PDCA_BYTE << AVR32_PDCA_SIZE_OFFSET;
-    pdca_channel->cr = AVR32_PDCA_ECLR_MASK | AVR32_PDCA_TEN_MASK;
-    pdca_channel->isr;
-
-    pdca_channel = &AVR32_PDCA.channel[PDCA_CHANNEL_AUX_TX];
-    pdca_channel->cr = AVR32_PDCA_TDIS_MASK;
-    pdca_channel->mar = (uint32_t)gcs_conn.tx_buf;
-    pdca_channel->tcr = packet_len;
-    pdca_channel->marr = 0;
-    pdca_channel->tcrr = 0;
-    pdca_channel->psr = AUX_USART_PDCA_PID_TX;
     pdca_channel->mr = AVR32_PDCA_BYTE << AVR32_PDCA_SIZE_OFFSET;
     pdca_channel->cr = AVR32_PDCA_ECLR_MASK | AVR32_PDCA_TEN_MASK;
     pdca_channel->isr;
