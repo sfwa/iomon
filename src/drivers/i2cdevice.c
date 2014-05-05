@@ -23,16 +23,17 @@ SOFTWARE.
 
 #include <asf.h>
 #include <avr32/io.h>
+#include "fcsassert.h"
 #include "i2cdevice.h"
 
 void i2c_device_init(struct i2c_device_t *dev) {
-    I2CAssert(dev);
-    I2CAssert(dev->sda_pin_id && dev->sda_function < 8u);
-    I2CAssert(dev->scl_pin_id && dev->scl_function < 8u);
-    I2CAssert(100000u <= dev->speed && dev->speed <= 400000u);
-    I2CAssert(dev->init_sequence);
-    I2CAssert(dev->read_sequence);
-    I2CAssert(dev->power_delay && dev->read_timeout && dev->init_timeout);
+    fcs_assert(dev);
+    fcs_assert(dev->sda_pin_id && dev->sda_function < 8u);
+    fcs_assert(dev->scl_pin_id && dev->scl_function < 8u);
+    fcs_assert(100000u <= dev->speed && dev->speed <= 400000u);
+    fcs_assert(dev->init_sequence);
+    fcs_assert(dev->read_sequence);
+    fcs_assert(dev->power_delay && dev->read_timeout && dev->init_timeout);
 
     dev->state = I2C_POWERING_DOWN;
     dev->sequence_idx = 0;
@@ -58,7 +59,7 @@ void i2c_device_init(struct i2c_device_t *dev) {
 }
 
 void i2c_device_tick(struct i2c_device_t *dev) {
-    I2CAssert(dev->power_delay && dev->read_timeout && dev->init_timeout);
+    fcs_assert(dev->power_delay && dev->read_timeout && dev->init_timeout);
 
     dev->state_timer++;
 

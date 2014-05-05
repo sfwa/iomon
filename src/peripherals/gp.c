@@ -22,9 +22,9 @@ SOFTWARE.
 
 #include <asf.h>
 #include <avr32/io.h>
-#include <Assert.h>
 #include <string.h>
 #include <adcifa/adcifa.h>
+#include "fcsassert.h"
 #include "comms.h"
 #include "gp.h"
 #include "plog/parameter.h"
@@ -170,7 +170,7 @@ void gp_tick(void) {
     uint32_t samples_read = GP_ADC_BUF_SIZE - pdca_channel->tcr;
     uint16_t samples_avail = 0;
 
-    Assert(samples_read <= GP_ADC_BUF_SIZE);
+    fcs_assert(samples_read <= GP_ADC_BUF_SIZE);
 
     /* Work out the number of bytes available in the ring buffer */
     if (samples_read > gp_adc_last_sample_idx) {
@@ -211,7 +211,8 @@ void gp_tick(void) {
     for (; samples_avail; samples_avail--) {
         /* If the number of samples is greater than 64 (corresponding to
            buffer size), something has gone badly wrong above. */
-        Assert(adc_sample_count[gp_adc_last_sample_idx % GP_NUM_ADCS] <= 4);
+        fcs_assert(
+            adc_sample_count[gp_adc_last_sample_idx % GP_NUM_ADCS] <= 4);
 
         int16_t sample = gp_adc_samples[gp_adc_last_sample_idx];
         if (sample < 0) { /* Clamp negative samples to zero */
@@ -234,7 +235,7 @@ void gp_tick(void) {
         } else {
             adc_totals[i] = 0;
         }
-        Assert(adc_totals[i] <= 32768);
+        fcs_assert(adc_totals[i] <= 32768);
     }
 
     /* Add ADC readings to measurement log */

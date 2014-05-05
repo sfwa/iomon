@@ -23,6 +23,7 @@ SOFTWARE.
 #include <asf.h>
 #include <avr32/io.h>
 #include <string.h>
+#include "fcsassert.h"
 #include "comms.h"
 #include "ubx_gps.h"
 #include "plog/parameter.h"
@@ -145,15 +146,9 @@ static enum gps_fix_mode_t ubx_last_fix_mode = GPS_FIX_NONE;
 #define Ubx_got_msg(msg_id) (ubx_inbuf_msg_class == msg_id[0] && \
     ubx_inbuf_msg_id == msg_id[1])
 
-#ifndef CONTINUE_ON_ASSERT
-#define UbxAssert(x) Assert(x)
-#else
-#define UbxAssert(x) if (!(x)) { ubx_state_timer = 0xffffu; }
-#endif
-
 static inline void ubx_state_transition(enum ubx_state_t new_state) {
-    UbxAssert(new_state != ubx_state);
-    UbxAssert(Ubx_state_is_valid(new_state));
+    fcs_assert(new_state != ubx_state);
+    fcs_assert(Ubx_state_is_valid(new_state));
 
     ubx_state = new_state;
     ubx_state_timer = 0;
@@ -184,7 +179,7 @@ void ubx_init(void) {
     GPS_USART->idr = 0xFFFFFFFFu;
     uint32_t result = usart_init_rs232(GPS_USART, &usart_options,
         sysclk_get_pba_hz());
-    UbxAssert(result == USART_SUCCESS);
+    fcs_assert(result == USART_SUCCESS);
 }
 
 /*
@@ -192,8 +187,8 @@ ubx_tick is called once per millisecond to handle message parsing and periodic
 tasks
 */
 void ubx_tick(void) {
-    UbxAssert(Ubx_state_is_valid(ubx_state));
-    UbxAssert(Ubx_parser_state_is_valid(ubx_inbuf_parse_state));
+    fcs_assert(Ubx_state_is_valid(ubx_state));
+    fcs_assert(Ubx_parser_state_is_valid(ubx_inbuf_parse_state));
 
     ubx_state_timer++;
 
@@ -209,7 +204,7 @@ void ubx_tick(void) {
     uint32_t inbuf_bytes_read = UBX_INBUF_SIZE - pdca_channel->tcr;
     uint32_t bytes_avail = 0;
 
-    UbxAssert(inbuf_bytes_read <= UBX_INBUF_SIZE);
+    fcs_assert(inbuf_bytes_read <= UBX_INBUF_SIZE);
 
     /* Work out the number of bytes available in the ring buffer */
     if (inbuf_bytes_read > ubx_inbuf_idx) {

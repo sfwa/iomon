@@ -24,6 +24,7 @@ SOFTWARE.
 #include <asf.h>
 #include <avr32/io.h>
 #include <string.h>
+#include "fcsassert.h"
 #include "comms.h"
 #include "drivers/i2cdevice.h"
 #include "ms4525.h"
@@ -61,12 +62,6 @@ static struct i2c_device_t ms4525 = {
     .init_sequence = read_sequence,
     .read_sequence = read_sequence
 };
-
-#ifndef CONTINUE_ON_ASSERT
-#define MS4525Assert(x) Assert(x)
-#else
-#define MS4525Assert(x) if (!(x)) { ms4525.state_timer = 0xffffu; }
-#endif
 
 void ms4525_init(void) {
     i2c_device_init(&ms4525);

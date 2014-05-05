@@ -23,22 +23,17 @@ SOFTWARE.
 
 #include <asf.h>
 #include <avr32/io.h>
+#include "fcsassert.h"
 #include "twim_pdca.h"
-
-#ifndef CONTINUE_ON_ASSERT
-#define TWIAssert(x) Assert(x)
-#else
-#define TWIAssert(x) if (!(x)) { wdt_reset_mcu(); }
-#endif
 
 inline static void twim_pdca_enable(volatile avr32_pdca_channel_t *pdca,
 void *buffer, uint32_t nbytes, uint32_t pid);
 
 inline static void twim_pdca_enable(volatile avr32_pdca_channel_t *pdca,
 void *buffer, uint32_t nbytes, uint32_t pid) {
-    TWIAssert(pdca);
-    TWIAssert(nbytes <= 255u);
-    TWIAssert(!nbytes || buffer);
+    fcs_assert(pdca);
+    fcs_assert(nbytes <= 255u);
+    fcs_assert(!nbytes || buffer);
 
     pdca->cr = AVR32_PDCA_TDIS_MASK;
     pdca->cr = AVR32_PDCA_ECLR_MASK;
@@ -52,8 +47,8 @@ void *buffer, uint32_t nbytes, uint32_t pid) {
 }
 
 void twim_pdca_init(struct twim_pdca_cfg_t *cfg, uint32_t speed_hz) {
-    TWIAssert(cfg);
-    TWIAssert(100000u <= speed_hz && speed_hz <= 400000u);
+    fcs_assert(cfg);
+    fcs_assert(100000u <= speed_hz && speed_hz <= 400000u);
 
     /* Clear PDCAs */
     twim_pdca_enable(&AVR32_PDCA.channel[cfg->tx_pdca_num], NULL, 0,
@@ -80,7 +75,7 @@ void twim_pdca_init(struct twim_pdca_cfg_t *cfg, uint32_t speed_hz) {
         cwgr_exp++;
         f_prescaled >>= 1u;
     }
-    TWIAssert(f_prescaled <= 0xffu && cwgr_exp <= 0x08u);
+    fcs_assert(f_prescaled <= 0xffu && cwgr_exp <= 0x08u);
 
     uint32_t min_hz = (speed_hz == 100000u) ? ((10000000u / 47u) + 1u) :
         ((100000000u / 133u) + 1u);
@@ -88,7 +83,7 @@ void twim_pdca_init(struct twim_pdca_cfg_t *cfg, uint32_t speed_hz) {
         f_prescaled--;
     }
 
-    TWIAssert(f_prescaled && cwgr_exp <= 0x7u);
+    fcs_assert(f_prescaled && cwgr_exp <= 0x7u);
 
     /* set clock waveform generator register */
     cfg->twim->CWGR.exp = cwgr_exp;
@@ -102,13 +97,13 @@ void twim_pdca_init(struct twim_pdca_cfg_t *cfg, uint32_t speed_hz) {
 
 void twim_pdca_transact(struct twim_pdca_cfg_t *cfg,
 struct twim_transaction_t *txn) {
-    TWIAssert(cfg);
-    TWIAssert(txn);
+    fcs_assert(cfg);
+    fcs_assert(txn);
 
     /* AVR32 datasheet, 27.8.5.1 */
     /* 1. Initialize PDCA */
-    TWIAssert(cfg->tx_pdca_num < AVR32_PDCA_CHANNEL_LENGTH);
-    TWIAssert(cfg->rx_pdca_num < AVR32_PDCA_CHANNEL_LENGTH);
+    fcs_assert(cfg->tx_pdca_num < AVR32_PDCA_CHANNEL_LENGTH);
+    fcs_assert(cfg->rx_pdca_num < AVR32_PDCA_CHANNEL_LENGTH);
     volatile avr32_pdca_channel_t *tx_pdca =
         &AVR32_PDCA.channel[cfg->tx_pdca_num];
     volatile avr32_pdca_channel_t *rx_pdca =
@@ -135,7 +130,7 @@ struct twim_transaction_t *txn) {
             | (txn->rx_len ? 0 : AVR32_TWIM_CMDR_STOP_MASK);
     }
     if (txn->rx_len) {
-        TWIAssert(txn->rx_buf);
+        fcs_assert(txn->rx_buf);
 
         twim_pdca_enable(rx_pdca, txn->rx_buf, txn->rx_len, cfg->rx_pid);
         rx_cmd = (txn->dev_addr << AVR32_TWIM_CMDR_SADR_OFFSET)
@@ -177,9 +172,9 @@ struct twim_transaction_t *txn) {
 
 enum twim_transaction_result_t twim_run_sequence(struct twim_pdca_cfg_t *cfg,
 struct twim_transaction_t seq[], uint32_t idx) {
-    TWIAssert(cfg);
-    TWIAssert(cfg->twim);
-    TWIAssert(seq);
+    fcs_assert(cfg);
+    fcs_assert(cfg->twim);
+    fcs_assert(seq);
 
     enum twim_transaction_result_t result = TWIM_TRANSACTION_NOTREADY;
 

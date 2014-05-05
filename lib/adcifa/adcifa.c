@@ -45,6 +45,7 @@
 *****************************************************************************/
 
 #include <avr32/io.h>
+#include "fcsassert.h"
 #include "compiler.h"
 #include "adcifa.h"
 
@@ -114,7 +115,7 @@ uint8_t adcifa_configure(volatile avr32_adcifa_t *adcifa,
 		uint32_t pb_hz)
 {
 	/* Sanity Check */
-	Assert(adcifa != NULL);
+	fcs_assert(adcifa != NULL);
 
 	/* Set the ADC configuration */
 	AVR32_ADCIFA.cfg
@@ -184,7 +185,7 @@ uint8_t adcifa_configure_sequencer(volatile avr32_adcifa_t *adcifa,
 	uint8_t i;
 
 	/* Sanity Check */
-	Assert( adcifa != NULL );
+	fcs_assert( adcifa != NULL );
 
 	/* Switch case with sequencer */
 	switch (sequencer) {
@@ -327,7 +328,7 @@ void adcifa_configure_window_monitor( volatile avr32_adcifa_t *adcifa,
 void adcifa_start_sequencer(volatile avr32_adcifa_t *adcifa, uint8_t sequencer)
 {
 	/* Sanity Check */
-	Assert( adcifa != NULL );
+	fcs_assert( adcifa != NULL );
 
 	/* Switch Sequencer */
 	switch (sequencer) {
@@ -357,7 +358,7 @@ void adcifa_start_sequencer(volatile avr32_adcifa_t *adcifa, uint8_t sequencer)
 bool adcifa_check_eoc(volatile avr32_adcifa_t *adcifa, uint8_t sequencer)
 {
 	/* Sanity Check */
-	Assert( adcifa != NULL );
+	fcs_assert( adcifa != NULL );
 
 	/* get SR register : EOC bit for channel */
 	switch (sequencer) {
@@ -380,7 +381,7 @@ bool adcifa_check_eoc(volatile avr32_adcifa_t *adcifa, uint8_t sequencer)
 bool adcifa_check_eos(volatile avr32_adcifa_t *adcifa, uint8_t sequencer)
 {
 	/* Sanity Check */
-	Assert( adcifa != NULL );
+	fcs_assert( adcifa != NULL );
 
 	/* get SR register : EOS bit for channel */
 	switch (sequencer) {
@@ -412,7 +413,7 @@ uint8_t adcifa_get_values_from_sequencer(volatile avr32_adcifa_t *adcifa,
 	uint8_t i;
 
 	/* Sanity Check */
-	Assert( adcifa != NULL );
+	fcs_assert( adcifa != NULL );
 
 	/* wait for end of sequence */
 	if (adcifa_check_eos(adcifa, sequencer) != true) {

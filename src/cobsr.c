@@ -28,23 +28,21 @@ SOFTWARE.
  * Consistent Overhead Byte Stuffing--Reduced (COBS/R)
  */
 
+#include <stdint.h>
+#include <stddef.h>
 #include "cobsr.h"
-
-#ifndef Assert
-#include <compiler.h>
-#include <Assert.h>
-#endif
+#include "fcsassert.h"
 
 struct cobsr_encode_result cobsr_encode(uint8_t *dst_buf_ptr,
 uint32_t dst_buf_len, const uint8_t * src_ptr, uint32_t src_len) {
     /* Asserts ensure that the main loop terminates, and that buffers do not
     overlap */
-    Assert(dst_buf_ptr);
-    Assert(src_ptr);
-    Assert(dst_buf_len <= 256u);
-    Assert(src_len <= 256u);
-    Assert(dst_buf_ptr + dst_buf_len < src_ptr ||
-           dst_buf_ptr > src_ptr + src_len);
+    fcs_assert(dst_buf_ptr);
+    fcs_assert(src_ptr);
+    fcs_assert(dst_buf_len <= 1024u);
+    fcs_assert(src_len <= 1024u);
+    fcs_assert(dst_buf_ptr + dst_buf_len < src_ptr ||
+               dst_buf_ptr > src_ptr + src_len);
 
 
     struct cobsr_encode_result result       = { 0, COBSR_ENCODE_OK };
@@ -129,12 +127,12 @@ struct cobsr_decode_result cobsr_decode(uint8_t *dst_buf_ptr,
 uint32_t dst_buf_len, const uint8_t * src_ptr, uint32_t src_len) {
     /* Asserts ensure that the main loop terminates, and that buffers do not
     overlap */
-    Assert(dst_buf_ptr);
-    Assert(src_ptr);
-    Assert(dst_buf_len <= 256u);
-    Assert(src_len <= 256u);
-    Assert(dst_buf_ptr + dst_buf_len < src_ptr ||
-           dst_buf_ptr > src_ptr + src_len);
+    fcs_assert(dst_buf_ptr);
+    fcs_assert(src_ptr);
+    fcs_assert(dst_buf_len <= 1024u);
+    fcs_assert(src_len <= 1024u);
+    fcs_assert(dst_buf_ptr + dst_buf_len < src_ptr ||
+               dst_buf_ptr > src_ptr + src_len);
 
     struct cobsr_decode_result result       = { 0, COBSR_DECODE_OK };
     const uint8_t *     src_end_ptr         = src_ptr + src_len;
@@ -167,7 +165,7 @@ uint32_t dst_buf_len, const uint8_t * src_ptr, uint32_t src_len) {
                 num_output_bytes = remaining_output_bytes;
             }
 
-            Assert(num_output_bytes <= 256u);
+            fcs_assert(num_output_bytes <= 256u);
             for (i = num_output_bytes; i != 0; i--) {
                 src_byte = *src_ptr++;
                 if (src_byte == 0) {
@@ -197,7 +195,7 @@ uint32_t dst_buf_len, const uint8_t * src_ptr, uint32_t src_len) {
                 num_output_bytes = remaining_output_bytes;
             }
 
-            Assert(num_output_bytes <= 256u);
+            fcs_assert(num_output_bytes <= 256u);
             for (i = num_output_bytes; i != 0; i--) {
                 src_byte = *src_ptr++;
                 if (src_byte == 0) {

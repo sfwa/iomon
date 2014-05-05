@@ -46,6 +46,7 @@
 #include <stddef.h>
 #include "compiler.h"
 #include "flashc.h"
+#include "fcsassert.h"
 
 
 /*! \name FLASHC Writable Bit-Field Registers
@@ -891,7 +892,7 @@ volatile void *flashc_memcpy(volatile void *dst, const void *src, size_t nbytes,
 	const uint8_t* src_buf=(const uint8_t*)src;
 
 	// Copy area must be in flash array or flash user page
-	Assert( (((uint8_t *)dst >= AVR32_FLASH)
+	fcs_assert( (((uint8_t *)dst >= AVR32_FLASH)
 			&& (((uint8_t *)dst + nbytes) <= (AVR32_FLASH + flashc_get_flash_size())))
 			|| (((uint8_t *)dst >= AVR32_FLASHC_USER_PAGE)
 			&& (((uint8_t *)dst + nbytes) <= (AVR32_FLASHC_USER_PAGE + AVR32_FLASHC_USER_PAGE_SIZE))) );

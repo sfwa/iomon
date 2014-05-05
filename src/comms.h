@@ -38,7 +38,7 @@ void comms_tick(void);
 
 void comms_set_cpu_status(uint32_t cycles_used);
 
-#define RX_BUF_LEN 256u
+#define RX_BUF_LEN 512u
 #define TX_BUF_LEN 256u
 
 struct connection_t {
@@ -48,19 +48,16 @@ struct connection_t {
     uint8_t tx_buf[TX_BUF_LEN];
 
     uint8_t rx_buf[RX_BUF_LEN];
-    uint8_t rx_buf_idx;
+    uint16_t rx_buf_idx;
 
     uint8_t rx_msg[FCS_LOG_SERIALIZED_LENGTH];
     uint16_t rx_msg_idx;
-    enum {
-        RX_NO_MSG = 0,
-        RX_START,
-        RX_IN_MSG,
-        RX_END
-    } rx_parse_state;
 
     uint16_t last_rx_packet_tick;
     uint16_t last_tx_packet_tick;
+	
+	uint32_t rx_packets;
+	uint32_t rx_errors;
 };
 
 extern struct connection_t cpu_conn;

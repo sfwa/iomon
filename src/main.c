@@ -22,6 +22,7 @@ SOFTWARE.
 
 
 #include <asf.h>
+#include "fcsassert.h"
 #include "comms.h"
 #include "peripherals/gp.h"
 #include "peripherals/pwm.h"
@@ -119,9 +120,9 @@ int main(void) {
             cpu_relax();
         }
 
-        if ((Get_system_register(AVR32_COUNT) - start_t) > 5u * counts_per_ms / 4u) {
+        if ((Get_system_register(AVR32_COUNT) - start_t) > 8u * counts_per_ms / 7u) {
             /* Lost an entire frame! */
-            Assert(false);
+            fcs_assert(false);
         }
     }
 }

@@ -24,6 +24,7 @@ SOFTWARE.
 #include <asf.h>
 #include <avr32/io.h>
 #include <string.h>
+#include "fcsassert.h"
 #include "comms.h"
 #include "pwm.h"
 #include "plog/parameter.h"
@@ -53,7 +54,6 @@ static uint32_t pwm_input_pins[PWM_NUM_INPUTS] =
 
 
 static void pwm_check_inputs(void);
-static void pwm_terminate_flight(void);
 
 /* Interrupt handler for PWM input */
 __attribute__((__interrupt__))
@@ -141,19 +141,19 @@ void pwm_init(void) {
 }
 
 void pwm_tick(void) {
-    uint16_t internal_values[PWM_NUM_OUTPUTS];
+    uint16_t out_values[PWM_NUM_OUTPUTS];
     struct fcs_parameter_t param;
     size_t i;
 
     /* Handle internal/external control and failsafe logic */
-    if (!pwm_use_internal) {
+    if (pwm_use_internal) {
         if (fcs_parameter_find_by_type_and_device(
                 &cpu_conn.in_log, FCS_PARAMETER_CONTROL_SETPOINT, 0, &param)){
-            for (i = 0; i < PWM_NUM_OUTPUTS; i++) {
-                internal_values[i] = swap16(param.data.u16[i]);
-            }
+            out_values[0] = swap16(param.data.u16[0]);
+            out_values[1] = swap16(param.data.u16[1]);
+            out_values[2] = swap16(param.data.u16[2]);
 
-            pwm_set_values(internal_values);
+            pwm_set_values(out_values);
             pwm_missed_internal_ticks = 0;
         } else {
             pwm_missed_internal_ticks++;
@@ -163,7 +163,10 @@ void pwm_tick(void) {
             pwm_terminate_flight();
         }
     } else {
-        pwm_set_values(pwm_input_values);
+        out_values[0] = pwm_input_values[0];
+        out_values[1] = pwm_input_values[1];
+        out_values[2] = pwm_input_values[2];
+
         pwm_missed_external_ticks = 0;
         /* FIXME: detect R/C failsafe condition */
 
@@ -172,20 +175,15 @@ void pwm_tick(void) {
         }
     }
 
-    /*
-    We keep calling this even after it's enabled because the pin has to
-    be toggled low-high-low every 10ms otherwise the board will go into
-    bypass.
-    */
-    pwm_enable();
+    /* Output PWM values and send the current positions to the log */
+    pwm_set_values(out_values);
 
-    /* Output PWM input values */
-    fcs_parameter_set_header(&param, FCS_VALUE_UNSIGNED, 16u, PWM_NUM_INPUTS);
+    fcs_parameter_set_header(&param, FCS_VALUE_UNSIGNED, 16u, 3u);
     fcs_parameter_set_type(&param, FCS_PARAMETER_CONTROL_POS);
     fcs_parameter_set_device_id(&param, 0);
-    for (i = 0; i < PWM_NUM_INPUTS; i++) {
-        param.data.u16[i] = swap16(pwm_input_values[i]);
-    }
+    param.data.u16[0] = swap16(out_values[0]);
+    param.data.u16[1] = swap16(out_values[1]);
+    param.data.u16[2] = swap16(out_values[2]);
     (void)fcs_log_add_parameter(&cpu_conn.out_log, &param);
 
     /* Output control mode -- 1 for internal, 0 for external (R/C) */
@@ -307,7 +305,7 @@ static void pwm_check_inputs(void) {
     }
 }
 
-static void pwm_terminate_flight(void) {
+void pwm_terminate_flight(void) {
     /*
     Infinite loop to lock out any possibility of recovery -- reset the WDT
     each time as well otherwise the system will restart itself.
@@ -319,8 +317,11 @@ static void pwm_terminate_flight(void) {
     irqflags_t flags = cpu_irq_save();
     /* Take control of the PWM */
     for (;;) {
+        /*
         pwm_enable();
         pwm_set_values(pwm_values);
+        */
+        pwm_disable();
         wdt_clear();
     }
     cpu_irq_restore(flags);

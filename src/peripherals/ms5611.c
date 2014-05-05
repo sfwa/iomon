@@ -24,6 +24,7 @@ SOFTWARE.
 #include <asf.h>
 #include <avr32/io.h>
 #include <string.h>
+#include "fcsassert.h"
 #include "comms.h"
 #include "drivers/i2cdevice.h"
 #include "ms5611.h"
@@ -61,8 +62,8 @@ static struct twim_transaction_t read_sequence[] = {
 static struct i2c_device_t ms5611 = {
     .speed = 100000u,
     .power_delay = 500u,
-    .init_timeout = 600u,
-    .read_timeout = 15u,
+    .init_timeout = 900u,
+    .read_timeout = 50u,
 
     .sda_pin_id = MS5611_TWI_TWD_PIN,
     .sda_function = MS5611_TWI_TWD_FUNCTION,
@@ -83,12 +84,6 @@ static struct i2c_device_t ms5611 = {
     .read_sequence = read_sequence
 };
 
-#ifndef CONTINUE_ON_ASSERT
-#define MS5611Assert(x) Assert(x)
-#else
-#define MS5611Assert(x) if (!(x)) { ms5611.state_timer = 0xffffu; }
-#endif
-
 /* The number of packets (ms) between temperature readings */
 #define MS5611_TEMP_PERIOD 100u
 
@@ -99,21 +94,21 @@ static inline struct ms5611_read_t ms5611_actual_pressure_temp(uint32_t d1,
     int64_t dT, temp, off, sens, p;
     struct ms5611_read_t result = { 0, 0, 1u };
 
-    MS5611Assert((d1 & 0xff000000u) == 0 && (d2 & 0xff000000u) == 0);
+    fcs_assert((d1 & 0xff000000u) == 0 && (d2 & 0xff000000u) == 0);
 
     dT = (int64_t)d2 - ((int64_t)t_ref * 256);
-    MS5611Assert(-16776960 <= dT && dT <= 16777216);
+    fcs_assert(-16776960 <= dT && dT <= 16777216);
 
     temp = 2000 + ((dT * (int64_t)tempsens) / 8388608);
-    MS5611Assert(-4000 <= temp && temp <= 8500);
+    fcs_assert(-4000 <= temp && temp <= 8500);
 
     off = ((int64_t)off_t1 * 65536) +
         (((int64_t)tco * dT) / 128);
-    MS5611Assert(-8589672450 <= off && off <= 12884705280);
+    fcs_assert(-8589672450 <= off && off <= 12884705280);
 
     sens = ((int64_t)sens_t1 * 32768) +
         (((int64_t)tcs * dT) / 256);
-    MS5611Assert(-4294836225 <= sens && sens <= 6442352640);
+    fcs_assert(-4294836225 <= sens && sens <= 6442352640);
 
     if (temp < 2000) {
         int64_t t2, off2, sens2;
@@ -133,11 +128,11 @@ static inline struct ms5611_read_t ms5611_actual_pressure_temp(uint32_t d1,
         off = off - off2;
         sens = sens - sens2;
 
-        MS5611Assert(-4000 <= temp && temp <= 8500);
+        fcs_assert(-4000 <= temp && temp <= 8500);
     }
 
     p = ((((int64_t)d1 * sens) / 2097152) - off) / 32768;
-    MS5611Assert(1000 <= p && p <= 120000);
+    fcs_assert(1000 <= p && p <= 120000);
 
     /*
     Conversion from int64_t -> int32_t is safe because we already know it's
@@ -208,7 +203,7 @@ void ms5611_tick(void) {
                 (void)fcs_log_add_parameter(&cpu_conn.out_log, &param);
             } else {
                 /* Something went wrong */
-                MS5611Assert(false);
+                fcs_assert(false);
             }
 
             /*
@@ -220,6 +215,7 @@ void ms5611_tick(void) {
                 i2c_device_state_transition(&ms5611, I2C_READ_SEQUENCE);
             } else {
                 ms5611.sequence_idx = 2u;
+				ms5611.state_timer = 0;
             }
             break;
     }

@@ -23,22 +23,17 @@ SOFTWARE.
 
 #include <asf.h>
 #include <avr32/io.h>
+#include "fcsassert.h"
 #include "spim_pdca.h"
-
-#ifndef CONTINUE_ON_ASSERT
-#define SPIAssert(x) Assert(x)
-#else
-#define SPIAssert(x) if (!(x)) { wdt_reset_mcu(); }
-#endif
 
 inline static void spim_pdca_enable(volatile avr32_pdca_channel_t *pdca,
 void *buffer, uint32_t nbytes, uint32_t pid);
 
 inline static void spim_pdca_enable(volatile avr32_pdca_channel_t *pdca,
 void *buffer, uint32_t nbytes, uint32_t pid) {
-    SPIAssert(pdca);
-    SPIAssert(nbytes <= 255u);
-    SPIAssert(!nbytes || buffer);
+    fcs_assert(pdca);
+    fcs_assert(nbytes <= 255u);
+    fcs_assert(!nbytes || buffer);
 
     pdca->cr = AVR32_PDCA_TDIS_MASK;
     pdca->cr = AVR32_PDCA_ECLR_MASK;
@@ -52,8 +47,8 @@ void *buffer, uint32_t nbytes, uint32_t pid) {
 }
 
 void spim_pdca_init(struct spim_pdca_cfg_t *cfg, uint32_t speed_hz) {
-    SPIAssert(cfg);
-    SPIAssert(1000000u <= speed_hz && speed_hz <= 20000000u);
+    fcs_assert(cfg);
+    fcs_assert(1000000u <= speed_hz && speed_hz <= 20000000u);
 
     /* Clear PDCAs */
     spim_pdca_enable(&AVR32_PDCA.channel[cfg->tx_pdca_num], NULL, 0,
@@ -64,7 +59,7 @@ void spim_pdca_init(struct spim_pdca_cfg_t *cfg, uint32_t speed_hz) {
     /* Initialize the SPI device clock -- PBC for SPI0, PBA for SPI1 */
     uint32_t f_pb = sysclk_get_pba_hz();
     uint32_t f_prescaled = f_pb / speed_hz;
-    SPIAssert(f_prescaled <= 0xffu);
+    fcs_assert(f_prescaled <= 0xffu);
 
     /* Set up the SPI registers */
     irqflags_t flags = cpu_irq_save();
@@ -88,13 +83,13 @@ void spim_pdca_init(struct spim_pdca_cfg_t *cfg, uint32_t speed_hz) {
 
 void spim_pdca_transact(struct spim_pdca_cfg_t *cfg,
 struct spim_transaction_t *txn) {
-    SPIAssert(cfg);
-    SPIAssert(txn);
+    fcs_assert(cfg);
+    fcs_assert(txn);
 
     /* AVR32 datasheet, 27.8.5.1 */
     /* 1. Initialize PDCA */
-    SPIAssert(cfg->tx_pdca_num < AVR32_PDCA_CHANNEL_LENGTH);
-    SPIAssert(cfg->rx_pdca_num < AVR32_PDCA_CHANNEL_LENGTH);
+    fcs_assert(cfg->tx_pdca_num < AVR32_PDCA_CHANNEL_LENGTH);
+    fcs_assert(cfg->rx_pdca_num < AVR32_PDCA_CHANNEL_LENGTH);
     volatile avr32_pdca_channel_t *tx_pdca =
         &AVR32_PDCA.channel[cfg->tx_pdca_num];
     volatile avr32_pdca_channel_t *rx_pdca =
@@ -122,7 +117,7 @@ struct spim_transaction_t *txn) {
     cfg->spim->csr3 = (0x30u << AVR32_SPI_CSR3_SCBR_OFFSET) |
                       AVR32_SPI_CSR3_NCPHA_MASK | AVR32_SPI_CSR3_CSAAT_MASK;
 	cfg->spim->cr = AVR32_SPI_CR_SPIEN_MASK;
-	
+
 	//cfg->spim->tdr = txn->tx_buf[0];
 
     /* Configure TX and RX PDCAs */
@@ -134,7 +129,7 @@ struct spim_transaction_t *txn) {
                          cfg->tx_pid);
         tx_pdca->cr = AVR32_PDCA_TEN_MASK;
     }
-	
+
 	//cfg->spim->cr = AVR32_SPI_CR_SPIEN_MASK;
 
     cpu_irq_restore(flags);
@@ -142,9 +137,9 @@ struct spim_transaction_t *txn) {
 
 enum spim_transaction_result_t spim_run_sequence(struct spim_pdca_cfg_t *cfg,
 struct spim_transaction_t seq[], uint32_t idx) {
-    SPIAssert(cfg);
-    SPIAssert(cfg->spim);
-    SPIAssert(seq);
+    fcs_assert(cfg);
+    fcs_assert(cfg->spim);
+    fcs_assert(seq);
 
     enum spim_transaction_result_t result = SPIM_TRANSACTION_NOTREADY;
 

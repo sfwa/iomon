@@ -43,12 +43,13 @@
 #include <avr32/io.h>
 #include <compiler.h>
 #include <pll.h>
+#include "fcsassert.h"
 
 void pll_config_write(const struct pll_config *cfg, unsigned int pll_id)
 {
 	irqflags_t flags;
 
-	Assert(pll_id < NR_PLLS);
+	fcs_assert(pll_id < NR_PLLS);
 
 	flags = cpu_irq_save();
 	AVR32_SCIF.unlock = 0xaa000000 | (AVR32_SCIF_PLL + (4 * pll_id));
@@ -60,7 +61,7 @@ void pll_enable(const struct pll_config *cfg, unsigned int pll_id)
 {
 	irqflags_t flags;
 
-	Assert(pll_id < NR_PLLS);
+	fcs_assert(pll_id < NR_PLLS);
 
 	flags = cpu_irq_save();
 	AVR32_SCIF.unlock = 0xaa000000 | (AVR32_SCIF_PLL + (4 * pll_id));
@@ -72,7 +73,7 @@ void pll_disable(unsigned int pll_id)
 {
 	irqflags_t flags;
 
-	Assert(pll_id < NR_PLLS);
+	fcs_assert(pll_id < NR_PLLS);
 
 	flags = cpu_irq_save();
 	AVR32_SCIF.unlock = 0xaa000000 | (AVR32_SCIF_PLL + (4 * pll_id));

@@ -24,6 +24,7 @@ SOFTWARE.
 #include <asf.h>
 #include <avr32/io.h>
 #include <string.h>
+#include "fcsassert.h"
 #include "comms.h"
 #include "drivers/spidevice.h"
 #include "mpu6000.h"

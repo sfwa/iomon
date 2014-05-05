@@ -24,6 +24,7 @@ SOFTWARE.
 #include <asf.h>
 #include <avr32/io.h>
 #include <string.h>
+#include "fcsassert.h"
 #include "drivers/i2cdevice.h"
 #include "comms.h"
 #include "hmc5883.h"

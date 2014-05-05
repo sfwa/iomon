@@ -44,6 +44,7 @@
 #include <compiler.h>
 #include <stdbool.h>
 #include <sysclk.h>
+#include "fcsassert.h"
 
 /* Pulled from flashc.c */
 static inline void flashc_configure_wait_state(unsigned long cpu_f_hz) {
@@ -192,8 +193,8 @@ void sysclk_set_prescalers(unsigned int cpu_shift,
 	uint32_t   pbb_cksel = 0;
 	uint32_t   pbc_cksel = 0;
 
-	Assert(cpu_shift <= pba_shift);
-	Assert(cpu_shift <= pbb_shift);
+	fcs_assert(cpu_shift <= pba_shift);
+	fcs_assert(cpu_shift <= pbb_shift);
 
 	if (cpu_shift > 0)
 		cpu_cksel = ((cpu_shift - 1) << AVR32_PM_CPUSEL_CPUSEL)
@@ -233,7 +234,7 @@ void sysclk_set_source(uint_fast8_t src)
 {
 	irqflags_t flags;
 
-	Assert(src <= SYSCLK_SRC_RC120M);
+	fcs_assert(src <= SYSCLK_SRC_RC120M);
 
 	flags = cpu_irq_save();
 	AVR32_PM.unlock = 0xaa000000 | AVR32_PM_MCCTRL;
@@ -335,7 +336,7 @@ void sysclk_init(void)
 		break;
 
 	default:
-		Assert(false);
+		fcs_assert(false);
 		break;
 	}
 

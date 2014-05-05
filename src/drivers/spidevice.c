@@ -23,18 +23,19 @@ SOFTWARE.
 
 #include <asf.h>
 #include <avr32/io.h>
+#include "fcsassert.h"
 #include "spidevice.h"
 
 void spi_device_init(struct spi_device_t *dev) {
-    SPIAssert(dev);
-    SPIAssert(dev->miso_pin_id && dev->miso_function < 8u);
-    SPIAssert(dev->mosi_pin_id && dev->mosi_function < 8u);
-    SPIAssert(dev->cs_pin_id && dev->cs_function < 8u);
-    SPIAssert(dev->clk_pin_id && dev->clk_function < 8u);
-    SPIAssert(1000000u <= dev->speed && dev->speed <= 20000000u);
-    SPIAssert(dev->init_sequence);
-    SPIAssert(dev->read_sequence);
-    SPIAssert(dev->power_delay && dev->read_timeout && dev->init_timeout);
+    fcs_assert(dev);
+    fcs_assert(dev->miso_pin_id && dev->miso_function < 8u);
+    fcs_assert(dev->mosi_pin_id && dev->mosi_function < 8u);
+    fcs_assert(dev->cs_pin_id && dev->cs_function < 8u);
+    fcs_assert(dev->clk_pin_id && dev->clk_function < 8u);
+    fcs_assert(1000000u <= dev->speed && dev->speed <= 20000000u);
+    fcs_assert(dev->init_sequence);
+    fcs_assert(dev->read_sequence);
+    fcs_assert(dev->power_delay && dev->read_timeout && dev->init_timeout);
 
     dev->state = SPI_POWERING_DOWN;
     dev->sequence_idx = 0;
@@ -57,7 +58,7 @@ void spi_device_init(struct spi_device_t *dev) {
 }
 
 void spi_device_tick(struct spi_device_t *dev) {
-    SPIAssert(dev->power_delay && dev->read_timeout && dev->init_timeout);
+    fcs_assert(dev->power_delay && dev->read_timeout && dev->init_timeout);
 
     dev->state_timer++;
 
