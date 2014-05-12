@@ -32,7 +32,7 @@
       </OverrideVtorValue>
       <Channel>
         <host>127.0.0.1</host>
-        <port>1275</port>
+        <port>1380</port>
         <ssl>False</ssl>
       </Channel>
       <ToolOptions>

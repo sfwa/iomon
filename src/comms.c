@@ -41,6 +41,7 @@ See https://github.com/bendyer/uav/wiki/IO-Board-Design
    hold reset high for 0.2s. */
 #define CPU_TIMEOUT_TICKS 10u
 #define CPU_RESET_TICKS 200u
+#define CPU_STARTUP_TICKS 10000u
 
 #define UPDATED_ACCEL 0x01u
 #define UPDATED_BAROMETER 0x02u
@@ -195,7 +196,7 @@ void comms_init(void) {
     memset(&cpu_conn, 0, sizeof(cpu_conn));
     memset(&gcs_conn, 0, sizeof(gcs_conn));
 
-    cpu_reset_countdown_tick = 0;
+    cpu_reset_countdown_tick = CPU_STARTUP_TICKS;
 
     /* Configure CPU USART */
     static usart_options_t usart_options;
@@ -365,7 +366,7 @@ void comms_tick(void) {
     fcs_log_init(&cpu_conn.out_log, FCS_LOG_TYPE_MEASUREMENT,
                  cpu_conn.last_tx_packet_tick);
 
-    /* Set the CPU reset line if the last received packet was more than 30s
+    /* Set the CPU reset line if the last received packet was more than 10ms
        ago */
     if (cpu_reset_countdown_tick == 0 &&
             cpu_conn.last_tx_packet_tick - cpu_conn.last_rx_packet_tick >
@@ -373,8 +374,8 @@ void comms_tick(void) {
         cpu_reset_countdown_tick = CPU_RESET_TICKS;
         gpio_local_set_gpio_pin(CPU_RESET_PIN);
 
-        /* Turn PWM off until we get another CPU packet */
-        pwm_disable();
+        /* Enter flight termination */
+        pwm_terminate_flight();
     } else if (cpu_reset_countdown_tick == 1u) {
         cpu_reset_countdown_tick = 0;
         cpu_conn.last_rx_packet_tick = cpu_conn.last_tx_packet_tick;
@@ -434,11 +435,6 @@ uint32_t channel_id) {
     }
 
     if (bytes_avail && comms_process_conn_read(conn, bytes_avail)) {
-        /*
-        We have to call pwm_enable frequently to keep the hardware watchdog
-        going.
-        */
-        pwm_enable();
         LED_ON(LED0_GPIO);
     } else {
         LED_OFF(LED0_GPIO);

@@ -33,6 +33,7 @@ SOFTWARE.
 #define PWM_INTERNAL_TO_EXTERNAL_THRESHOLD 20000u
 #define PWM_EXTERNAL_TO_INTERNAL_THRESHOLD 40000u
 #define PWM_TRANSITION_PULSE_COUNT 5u
+#define PWM_TRIM_MEASUREMENT_TICKS 5000u
 
 
 #define PWM_FAILSAFE_INTERNAL_TICKS 10u
@@ -40,15 +41,17 @@ SOFTWARE.
 
 
 static uint32_t pwm_out_values[PWM_NUM_OUTPUTS];
+static uint16_t pwm_trim_offsets[PWM_NUM_OUTPUTS];
 static bool pwm_is_enabled = false;
 static bool pwm_use_internal = false;
 static uint32_t pwm_transition_pulses = 0;
 static uint32_t pwm_missed_internal_ticks = 0;
 static uint32_t pwm_missed_external_ticks = 0;
+static uint32_t pwm_trim_measurement_ticks;
 
-static uint8_t pwm_input_state;
-static uint32_t pwm_input_state_begin[PWM_NUM_INPUTS];
-static uint16_t pwm_input_values[PWM_NUM_INPUTS];
+static volatile uint8_t pwm_input_state;
+static volatile uint32_t pwm_input_state_begin[PWM_NUM_INPUTS];
+static volatile uint16_t pwm_input_values[PWM_NUM_INPUTS];
 static uint32_t pwm_input_pins[PWM_NUM_INPUTS] =
     {PWM_IN_0_PIN, PWM_IN_1_PIN, PWM_IN_2_PIN, PWM_IN_3_PIN};
 
@@ -57,14 +60,29 @@ static void pwm_check_inputs(void);
 
 /* Interrupt handler for PWM input */
 __attribute__((__interrupt__))
-static void pwm_input_interrupt_handler (void)
+static void pwm_input_interrupt_handler_1 (void)
 {
+    cpu_irq_disable();
+
     pwm_check_inputs();
 
     gpio_clear_pin_interrupt_flag(PWM_IN_0_PIN);
     gpio_clear_pin_interrupt_flag(PWM_IN_1_PIN);
     gpio_clear_pin_interrupt_flag(PWM_IN_2_PIN);
+
+    cpu_irq_enable();
+}
+
+__attribute__((__interrupt__))
+static void pwm_input_interrupt_handler_2 (void)
+{
+    cpu_irq_disable();
+
+    pwm_check_inputs();
+
     gpio_clear_pin_interrupt_flag(PWM_IN_3_PIN);
+
+    cpu_irq_enable();
 }
 
 void pwm_init(void) {
@@ -85,18 +103,28 @@ void pwm_init(void) {
     pwm_use_internal = false;
     pwm_missed_internal_ticks = 0;
     pwm_missed_external_ticks = 0;
+    pwm_trim_measurement_ticks = 0;
 
     /* Clear out input states and enable PWM input interrupts */
     pwm_input_state = 0;
-    for (uint8_t i = 0; i < PWM_NUM_INPUTS; i++) {
-        pwm_input_state_begin[i] = 0;
-        pwm_input_values[i] = 0;
+	memset(pwm_input_state_begin, 0, sizeof(pwm_input_state_begin));
+	memset(pwm_input_values, 0, sizeof(pwm_input_values));
+    memset(pwm_trim_offsets, 0, sizeof(pwm_trim_offsets));
 
-        gpio_configure_pin(pwm_input_pins[i], GPIO_DIR_INPUT | GPIO_PULL_DOWN);
-        gpio_enable_pin_interrupt(pwm_input_pins[i], GPIO_PIN_CHANGE);
-        INTC_register_interrupt(&pwm_input_interrupt_handler,
-            AVR32_GPIO_IRQ_0 + (pwm_input_pins[i] / 8), AVR32_INTC_INT0);
-    }
+	gpio_configure_pin(pwm_input_pins[0], GPIO_DIR_INPUT | GPIO_PULL_DOWN);
+	gpio_configure_pin(pwm_input_pins[1], GPIO_DIR_INPUT | GPIO_PULL_DOWN);
+	gpio_configure_pin(pwm_input_pins[2], GPIO_DIR_INPUT | GPIO_PULL_DOWN);
+	gpio_configure_pin(pwm_input_pins[3], GPIO_DIR_INPUT | GPIO_PULL_DOWN);
+
+    INTC_register_interrupt(
+        &pwm_input_interrupt_handler_1, AVR32_GPIO_IRQ_14, AVR32_INTC_INT0);
+    INTC_register_interrupt(
+        &pwm_input_interrupt_handler_2, AVR32_GPIO_IRQ_15, AVR32_INTC_INT0);
+
+    gpio_enable_pin_interrupt(pwm_input_pins[0], GPIO_PIN_CHANGE);
+    gpio_enable_pin_interrupt(pwm_input_pins[1], GPIO_PIN_CHANGE);
+    gpio_enable_pin_interrupt(pwm_input_pins[2], GPIO_PIN_CHANGE);
+    gpio_enable_pin_interrupt(pwm_input_pins[3], GPIO_PIN_CHANGE);
 
     /* Initialize PWM frequency and mode */
     volatile avr32_pwm_t *pwm = &AVR32_PWM;
@@ -149,13 +177,18 @@ void pwm_tick(void) {
     if (pwm_use_internal) {
         if (fcs_parameter_find_by_type_and_device(
                 &cpu_conn.in_log, FCS_PARAMETER_CONTROL_SETPOINT, 0, &param)){
-            out_values[0] = swap16(param.data.u16[0]);
-            out_values[1] = swap16(param.data.u16[1]);
-            out_values[2] = swap16(param.data.u16[2]);
+            out_values[0] = pwm_trim_offsets[0] + swap16(param.data.u16[0]);
+            out_values[1] = (pwm_trim_offsets[1] - 32767) +
+                            swap16(param.data.u16[1]);
+            out_values[2] = (pwm_trim_offsets[2] - 32767) +
+                            (65535 - swap16(param.data.u16[2]));
 
             pwm_set_values(out_values);
             pwm_missed_internal_ticks = 0;
         } else {
+			out_values[0] = 0;
+			out_values[1] = pwm_trim_offsets[1];
+			out_values[2] = pwm_trim_offsets[2];
             pwm_missed_internal_ticks++;
         }
 
@@ -175,15 +208,31 @@ void pwm_tick(void) {
         }
     }
 
+    if (pwm_trim_measurement_ticks < PWM_TRIM_MEASUREMENT_TICKS) {
+        pwm_trim_offsets[1] +=
+            (pwm_input_values[1] - pwm_trim_offsets[1]) >> 2u;
+        pwm_trim_offsets[2] +=
+            (pwm_input_values[2] - pwm_trim_offsets[2]) >> 2u;
+        pwm_trim_measurement_ticks++;
+    }
+
+    /*
+    We have to call pwm_enable frequently to keep the hardware watchdog
+    going.
+    */
+    pwm_enable();
+
     /* Output PWM values and send the current positions to the log */
     pwm_set_values(out_values);
 
     fcs_parameter_set_header(&param, FCS_VALUE_UNSIGNED, 16u, 3u);
     fcs_parameter_set_type(&param, FCS_PARAMETER_CONTROL_POS);
     fcs_parameter_set_device_id(&param, 0);
-    param.data.u16[0] = swap16(out_values[0]);
-    param.data.u16[1] = swap16(out_values[1]);
-    param.data.u16[2] = swap16(out_values[2]);
+    param.data.u16[0] = swap16(out_values[0] - pwm_trim_offsets[0]);
+    param.data.u16[1] = swap16(out_values[1] -
+                               (pwm_trim_offsets[1] - 32767));
+    param.data.u16[2] = 65535 - swap16(out_values[2] -
+                                       (pwm_trim_offsets[2] - 32767));
     (void)fcs_log_add_parameter(&cpu_conn.out_log, &param);
 
     /* Output control mode -- 1 for internal, 0 for external (R/C) */
@@ -306,11 +355,12 @@ static void pwm_check_inputs(void) {
 }
 
 void pwm_terminate_flight(void) {
+	return;
     /*
     Infinite loop to lock out any possibility of recovery -- reset the WDT
     each time as well otherwise the system will restart itself.
     */
-    static uint16_t pwm_values[PWM_NUM_OUTPUTS] = {0, 0, 65535u, 0};
+    static uint16_t pwm_values[PWM_NUM_OUTPUTS] = {0, 18000u, 18000u, 0};
 
     LED_ON(LED3_GPIO);
 
@@ -318,9 +368,11 @@ void pwm_terminate_flight(void) {
     /* Take control of the PWM */
     for (;;) {
         /*
-        pwm_enable();
+        FIXME
+		pwm_enable();
         pwm_set_values(pwm_values);
-        */
+		*/
+
         pwm_disable();
         wdt_clear();
     }
