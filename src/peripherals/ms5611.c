@@ -63,7 +63,7 @@ static struct i2c_device_t ms5611 = {
     .speed = 100000u,
     .power_delay = 500u,
     .init_timeout = 900u,
-    .read_timeout = 50u,
+    .read_timeout = 200u,
 
     .sda_pin_id = MS5611_TWI_TWD_PIN,
     .sda_function = MS5611_TWI_TWD_FUNCTION,
@@ -215,7 +215,6 @@ void ms5611_tick(void) {
                 i2c_device_state_transition(&ms5611, I2C_READ_SEQUENCE);
             } else {
                 ms5611.sequence_idx = 2u;
-				ms5611.state_timer = 0;
             }
             break;
     }
