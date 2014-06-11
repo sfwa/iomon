@@ -107,7 +107,7 @@ void gp_init(void) {
     adc_opts.free_running_mode_enable = false;
 
     /* Set reference source to AREF1 */
-    adc_opts.reference_source = ADCIFA_ADCREF1;
+    adc_opts.reference_source = ADCIFA_REF06VDD;
 
     /* - Set clock divider to 192 (16ks/s) */
     adc_opts.frequency = GP_NUM_ADCS * 2u * 1000u;
@@ -228,22 +228,22 @@ void gp_tick(void) {
     }
 
     for (uint8_t i = 0; i < GP_NUM_ADCS; i++) {
-        /* Average and convert each value to the range [0, 32768) */
+        /* Average and convert each value to the range [0, 32752) */
         if (adc_sample_count[i] > 0) {
             adc_totals[i] <<= 4;
             adc_totals[i] /= adc_sample_count[i];
         } else {
             adc_totals[i] = 0;
         }
-        fcs_assert(adc_totals[i] <= 32768);
+        fcs_assert(adc_totals[i] <= 32752);
     }
 
     /* Add ADC readings to measurement log */
     fcs_parameter_set_header(&param, FCS_VALUE_UNSIGNED, 16u, 2u);
     fcs_parameter_set_type(&param, FCS_PARAMETER_IV);
     fcs_parameter_set_device_id(&param, 0);
-    param.data.u16[0] = adc_totals[GP_ADC_BATTERY_I];
-    param.data.u16[1] = adc_totals[GP_ADC_BATTERY_V];
+    param.data.u16[0] = swap16(adc_totals[GP_ADC_BATTERY_I]);
+    param.data.u16[1] = swap16(adc_totals[GP_ADC_BATTERY_V]);
     (void)fcs_log_add_parameter(&cpu_conn.out_log, &param);
 }
 
