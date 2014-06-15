@@ -120,16 +120,16 @@ void mpu6000_tick(void) {
         fcs_parameter_set_header(&param, FCS_VALUE_SIGNED, 16u, 3u);
         fcs_parameter_set_type(&param, FCS_PARAMETER_ACCELEROMETER_XYZ);
         fcs_parameter_set_device_id(&param, 0);
-        param.data.i16[0] = swap16(data[1]);
-        param.data.i16[1] = swap16(data[0]);
-        param.data.i16[2] = swap16(-data[2]);
+        param.data.i16[0] = swap_i16(data[1]);
+        param.data.i16[1] = swap_i16(data[0]);
+        param.data.i16[2] = swap_i16(-data[2]);
         (void)fcs_log_add_parameter(&cpu_conn.out_log, &param);
 
         fcs_parameter_set_type(&param, FCS_PARAMETER_GYROSCOPE_XYZ);
         fcs_parameter_set_device_id(&param, 0);
-        param.data.i16[0] = swap16(data[5]);
-        param.data.i16[1] = swap16(data[4]);
-        param.data.i16[2] = swap16(-data[6]);
+        param.data.i16[0] = swap_i16(data[5]);
+        param.data.i16[1] = swap_i16(data[4]);
+        param.data.i16[2] = swap_i16(-data[6]);
         (void)fcs_log_add_parameter(&cpu_conn.out_log, &param);
 
         mpu6000.state_timer = 0;

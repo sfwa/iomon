@@ -33,12 +33,12 @@ SOFTWARE.
 #include "peripherals/ms4525.h"
 
 int main(void) {
-    irq_initialize_vectors();
-    cpu_irq_enable();
-
-    /* Initialize core systems */
-    sleepmgr_init();
+	/* Initialize core systems */
     sysclk_init();
+	sleepmgr_init();
+
+    irq_initialize_vectors();
+    cpu_irq_disable();
 
     /* Initialize the WDT as early as possible; initially set timeout to 100ms */
     wdt_opt_t wdt_options = {
@@ -87,6 +87,8 @@ int main(void) {
     wdt_enable(&wdt_options);
 #endif
 
+    cpu_irq_enable();
+
     uint32_t counts_per_ms, frame;
     counts_per_ms = sysclk_get_cpu_hz() / 1000u;
     frame = Get_system_register(AVR32_COUNT) / counts_per_ms;
@@ -124,5 +126,8 @@ int main(void) {
             /* Lost an entire frame! */
             fcs_assert(false);
         }
+
+        /* Transmit the CPU packet at ~exactly the same time each frame */
+        comms_start_transmit();
     }
 }

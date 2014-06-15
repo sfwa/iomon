@@ -32,7 +32,7 @@ SOFTWARE.
 #define GP_NUM_INPUTS 4u
 #define GP_NUM_OUTPUTS 4u
 #define GP_NUM_ADCS 4u
-#define GP_ADC_BUF_SIZE (GP_NUM_ADCS * 2u * 2u)
+#define GP_ADC_BUF_SIZE (GP_NUM_ADCS * 4u * 2u)
 
 #define GP_ADC_PITOT 0u
 #define GP_ADC_BATTERY_I 1u
@@ -70,7 +70,7 @@ void gp_init(void) {
     gpio_configure_pin(gp_input_pins[2], GPIO_DIR_INPUT | GPIO_PULL_UP);
     gpio_configure_pin(gp_input_pins[3], GPIO_DIR_INPUT | GPIO_PULL_UP);
 
-    gp_set_pins(0);
+    //gp_set_pins(0);
 
     /* Configure the pins connected to LEDs as output and set their default
        initial state to high (LEDs on). */
@@ -242,8 +242,8 @@ void gp_tick(void) {
     fcs_parameter_set_header(&param, FCS_VALUE_UNSIGNED, 16u, 2u);
     fcs_parameter_set_type(&param, FCS_PARAMETER_IV);
     fcs_parameter_set_device_id(&param, 0);
-    param.data.u16[0] = swap16(adc_totals[GP_ADC_BATTERY_I]);
-    param.data.u16[1] = swap16(adc_totals[GP_ADC_BATTERY_V]);
+    param.data.u16[0] = swap_u16(adc_totals[GP_ADC_BATTERY_I]);
+    param.data.u16[1] = swap_u16(adc_totals[GP_ADC_BATTERY_V]);
     (void)fcs_log_add_parameter(&cpu_conn.out_log, &param);
 }
 

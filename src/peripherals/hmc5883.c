@@ -138,9 +138,9 @@ void hmc5883_measure(void) {
             fcs_parameter_set_header(&param, FCS_VALUE_SIGNED, 16u, 3u);
             fcs_parameter_set_type(&param, FCS_PARAMETER_MAGNETOMETER_XYZ);
             fcs_parameter_set_device_id(&param, 0);
-            param.data.i16[0] = swap16(-measurement[0]);
-            param.data.i16[1] = swap16(measurement[2]);
-            param.data.i16[2] = swap16(-measurement[1]);
+            param.data.i16[0] = swap_i16(-measurement[0]);
+            param.data.i16[1] = swap_i16(measurement[2]);
+            param.data.i16[2] = swap_i16(-measurement[1]);
             (void)fcs_log_add_parameter(&cpu_conn.out_log, &param);
 
             hmc5883.state_timer = 0;

@@ -39,7 +39,7 @@ static struct twim_transaction_t read_sequence[] = {
 };
 
 static struct i2c_device_t ms4525 = {
-    .speed = 100000u,
+    .speed = 150000u,
     .power_delay = 100u,
     .init_timeout = 200u,
     .read_timeout = 15u,
@@ -97,8 +97,8 @@ void ms4525_tick(void) {
             fcs_parameter_set_header(&param, FCS_VALUE_UNSIGNED, 16u, 2u);
             fcs_parameter_set_type(&param, FCS_PARAMETER_PITOT);
             fcs_parameter_set_device_id(&param, 0);
-            param.data.i16[0] = swap16(pressure);
-            param.data.i16[1] = swap16(temp);
+            param.data.u16[0] = swap_u16(pressure);
+            param.data.u16[1] = swap_u16(temp);
             (void)fcs_log_add_parameter(&cpu_conn.out_log, &param);
         } else {
             /* Something went wrong */

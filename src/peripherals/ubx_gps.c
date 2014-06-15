@@ -210,8 +210,7 @@ void ubx_tick(void) {
     if (inbuf_bytes_read > ubx_inbuf_idx) {
         bytes_avail = inbuf_bytes_read - ubx_inbuf_idx;
     } else if (inbuf_bytes_read < ubx_inbuf_idx) {
-        bytes_avail = (UBX_INBUF_SIZE - ubx_inbuf_idx - 1u) +
-            inbuf_bytes_read;
+        bytes_avail = (UBX_INBUF_SIZE - ubx_inbuf_idx) + inbuf_bytes_read;
     } else {
         /* inbuf_bytes_read == ubx_inbuf_idx, i.e. no new bytes read */
         bytes_avail = 0;
@@ -375,7 +374,7 @@ static void ubx_process_latest_msg(void) {
             ubx_last_fix_mode = GPS_FIX_NONE;
         }
 
-        pos_err = swap32(msg.hAcc);
+        pos_err = swap_u32(msg.hAcc);
         /* Convert to metres, rounding up */
         pos_err = (pos_err + 500u) / 1000u;
         if (pos_err > 0xffu) {
@@ -402,9 +401,9 @@ static void ubx_process_latest_msg(void) {
             fcs_parameter_set_header(&param, FCS_VALUE_SIGNED, 16u, 3u);
             fcs_parameter_set_type(&param, FCS_PARAMETER_GPS_VELOCITY_NED);
             fcs_parameter_set_device_id(&param, 0);
-            param.data.i16[0] = swap16(clamp_s16(swap32(msg.velN)));
-            param.data.i16[1] = swap16(clamp_s16(swap32(msg.velE)));
-            param.data.i16[2] = swap16(clamp_s16(swap32(msg.velD)));
+            param.data.i16[0] = swap_i16(clamp_s16(swap_i32(msg.velN)));
+            param.data.i16[1] = swap_i16(clamp_s16(swap_i32(msg.velE)));
+            param.data.i16[2] = swap_i16(clamp_s16(swap_i32(msg.velD)));
             (void)fcs_log_add_parameter(&cpu_conn.out_log, &param);
         }
 

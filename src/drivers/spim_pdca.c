@@ -35,6 +35,10 @@ void *buffer, uint32_t nbytes, uint32_t pid) {
     fcs_assert(nbytes <= 255u);
     fcs_assert(!nbytes || buffer);
 
+    if (pdca->tcr) {
+        pdca->tcr = 0;
+    }
+
     pdca->cr = AVR32_PDCA_TDIS_MASK;
     pdca->cr = AVR32_PDCA_ECLR_MASK;
     pdca->mar = (uint32_t)buffer;

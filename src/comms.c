@@ -55,6 +55,8 @@ See https://github.com/bendyer/uav/wiki/IO-Board-Design
 
 struct connection_t cpu_conn;
 struct connection_t gcs_conn;
+static uint8_t cpu_tx_dma_buf[TX_BUF_LEN];
+static uint8_t gcs_tx_dma_buf[TX_BUF_LEN];
 
 static uint32_t accel_count, baro_count, mag_count, gps_count, pitot_count;
 
@@ -200,7 +202,7 @@ void comms_init(void) {
 
     /* Configure CPU USART */
     static usart_options_t usart_options;
-    usart_options.baudrate = 2604168u;
+    usart_options.baudrate = 2604166u;
     usart_options.charlength = 8u;
     usart_options.paritytype = USART_NO_PARITY;
     usart_options.stopbits = USART_1_STOPBIT;
@@ -229,7 +231,6 @@ void comms_init(void) {
 
 void comms_tick(void) {
     size_t packet_len, i, j, param_len;
-    irqflags_t flags;
     enum fcs_parameter_type_t param_type;
     struct fcs_parameter_t param;
     volatile avr32_pdca_channel_t *pdca_channel;
@@ -330,11 +331,15 @@ void comms_tick(void) {
 	                               &gcs_conn.out_log);
 
     /* Only send the telemetry packet every TELEMETRY_INTERVAL ticks */
-    if (cpu_conn.last_tx_packet_tick % TELEMETRY_INTERVAL == 0) {
-        flags = cpu_irq_save();
-        pdca_channel = &AVR32_PDCA.channel[PDCA_CHANNEL_AUX_TX];
-        pdca_channel->cr = AVR32_PDCA_TDIS_MASK;
-        pdca_channel->mar = (uint32_t)gcs_conn.tx_buf;
+	pdca_channel = &AVR32_PDCA.channel[PDCA_CHANNEL_AUX_TX];
+    if (pdca_channel->tcr == 0 &&
+			cpu_conn.last_tx_packet_tick % TELEMETRY_INTERVAL == 0) {
+		pdca_channel->cr = AVR32_PDCA_TDIS_MASK;
+
+		memcpy(gcs_tx_dma_buf, gcs_conn.tx_buf, TX_BUF_LEN);
+
+        irqflags_t flags = cpu_irq_save();
+        pdca_channel->mar = (uint32_t)gcs_tx_dma_buf;
         pdca_channel->tcr = packet_len;
         pdca_channel->marr = 0;
         pdca_channel->tcrr = 0;
@@ -349,18 +354,14 @@ void comms_tick(void) {
     packet_len = fcs_log_serialize(cpu_conn.tx_buf, TX_BUF_LEN,
                                    &cpu_conn.out_log);
 
-    flags = cpu_irq_save();
-    pdca_channel = &AVR32_PDCA.channel[PDCA_CHANNEL_CPU_TX];
-    pdca_channel->cr = AVR32_PDCA_TDIS_MASK;
-    pdca_channel->mar = (uint32_t)cpu_conn.tx_buf;
-    pdca_channel->tcr = packet_len;
-    pdca_channel->marr = 0;
-    pdca_channel->tcrr = 0;
-    pdca_channel->psr = CPU_USART_PDCA_PID_TX;
-    pdca_channel->mr = AVR32_PDCA_BYTE << AVR32_PDCA_SIZE_OFFSET;
-    pdca_channel->cr = AVR32_PDCA_ECLR_MASK | AVR32_PDCA_TEN_MASK;
-    pdca_channel->isr;
-    cpu_irq_restore(flags);
+    fcs_assert(packet_len < 192u);
+    memmove(&cpu_conn.tx_buf[192u - packet_len], cpu_conn.tx_buf, packet_len);
+    memset(cpu_conn.tx_buf, 0, 192u - packet_len);
+
+    /*
+    Transmission is start by calling comms_start_transmit(); that's done at a
+    fixed time every frame to avoid jitter at the DSP end.
+    */
 
     cpu_conn.last_tx_packet_tick++;
     fcs_log_init(&cpu_conn.out_log, FCS_LOG_TYPE_MEASUREMENT,
@@ -387,10 +388,37 @@ void comms_tick(void) {
     }
 }
 
+void comms_start_transmit(void) {
+	volatile avr32_pdca_channel_t *pdca_channel;
+
+    pdca_channel = &AVR32_PDCA.channel[PDCA_CHANNEL_CPU_TX];
+
+    /* Don't start the next transfer until the current one completes */
+    if (pdca_channel->tcr) {
+        return;
+    }
+
+    pdca_channel->cr = AVR32_PDCA_TDIS_MASK;
+
+    memcpy(cpu_tx_dma_buf, cpu_conn.tx_buf, TX_BUF_LEN);
+
+    irqflags_t flags = cpu_irq_save();
+    pdca_channel->mar = (uint32_t)cpu_tx_dma_buf;
+    pdca_channel->tcr = 192u;
+    pdca_channel->marr = 0;
+    pdca_channel->tcrr = 0;
+    pdca_channel->psr = CPU_USART_PDCA_PID_TX;
+    pdca_channel->mr = AVR32_PDCA_BYTE << AVR32_PDCA_SIZE_OFFSET;
+    pdca_channel->cr = AVR32_PDCA_ECLR_MASK | AVR32_PDCA_TEN_MASK;
+    pdca_channel->isr;
+    cpu_irq_restore(flags);
+}
+
 static void comms_process_conn_rx(struct connection_t *conn,
 uint32_t channel_id) {
     irqflags_t flags;
     size_t bytes_read, bytes_avail;
+    bool result;
     volatile avr32_pdca_channel_t *pdca_channel;
 
     /*
@@ -401,6 +429,7 @@ uint32_t channel_id) {
     /* Receive data from the UART */
     bytes_read = RX_BUF_LEN - pdca_channel->tcr;
     bytes_avail = 0;
+    result = true;
 
     fcs_assert(bytes_read <= RX_BUF_LEN);
 
@@ -408,7 +437,7 @@ uint32_t channel_id) {
     if (bytes_read > (conn->rx_buf_idx & 0x1FFu)) {
         bytes_avail = bytes_read - (conn->rx_buf_idx & 0x1FFu);
     } else if (bytes_read < (conn->rx_buf_idx & 0x1FFu)) {
-        bytes_avail = (RX_BUF_LEN - (conn->rx_buf_idx & 0x1FFu) - 1u) + bytes_read;
+        bytes_avail = (RX_BUF_LEN - (conn->rx_buf_idx & 0x1FFu)) + bytes_read;
     }
 
     if (bytes_avail > RX_BUF_LEN - 8u) {
@@ -434,18 +463,20 @@ uint32_t channel_id) {
         cpu_irq_restore(flags);
     }
 
-    if (bytes_avail && comms_process_conn_read(conn, bytes_avail)) {
-        LED_ON(LED0_GPIO);
-    } else {
-        LED_OFF(LED0_GPIO);
-    }
+    if (bytes_avail) {
+        result = comms_process_conn_read(conn, bytes_avail);
+    } else if (conn == &cpu_conn) {
+		LED_OFF(LED0_GPIO);
+		LED_OFF(LED2_GPIO);
+	}
 }
 
 static bool comms_process_conn_read(struct connection_t *conn,
 uint32_t bytes_avail) {
     fcs_assert(bytes_avail <= RX_BUF_LEN);
 
-    bool result = false, got_message = false;
+    bool result = false, got_message = false, did_get_message = false,
+         did_get_error = false;
     uint8_t ch, buf[15];
     struct cobsr_decode_result decode_result;
     struct fcs_parameter_t param;
@@ -473,8 +504,9 @@ uint32_t bytes_avail) {
             conn->rx_msg[conn->rx_msg_idx] = ch;
             conn->rx_msg_idx++;
 
-			if (conn->rx_msg_idx > 240u) {
+			if (conn->rx_msg_idx > 510u) {
 				conn->rx_msg_idx = 0;
+                got_message = false;
 			}
         }
 
@@ -503,13 +535,16 @@ uint32_t bytes_avail) {
                     param.data.u8[3] = buf[10]; /* # errors fixed LSB */
                     (void)fcs_log_add_parameter(&cpu_conn.out_log, &param);
                 }
-            } else if (conn->rx_msg_idx > 7u && conn->rx_msg_idx < 256u) {
+            } else if (conn->rx_msg_idx > 7u) {
+                did_get_message = true;
+
                 /* Measurement log packet */
                 result = fcs_log_deserialize(&conn->in_log, conn->rx_msg,
                                              conn->rx_msg_idx);
                 if (!result) {
                     fcs_log_init(&conn->in_log, FCS_LOG_TYPE_COMBINED, 0);
 					conn->rx_errors++;
+                    did_get_error = true;
                 } else {
 					conn->rx_packets++;
 					conn->last_rx_packet_tick = conn->last_tx_packet_tick;
@@ -518,6 +553,24 @@ uint32_t bytes_avail) {
 
             conn->rx_msg_idx = 0;
 			got_message = false;
+        }
+    }
+
+    /*
+    Turn on green LED when getting data from the CPU channel, and turn on
+    orange LED in response to errors.
+    */
+    if (conn == &cpu_conn) {
+        if (did_get_message) {
+            LED_ON(LED0_GPIO);
+        } else {
+            LED_OFF(LED0_GPIO);
+        }
+
+        if (did_get_error) {
+            LED_ON(LED2_GPIO);
+        } else {
+            LED_OFF(LED2_GPIO);
         }
     }
 

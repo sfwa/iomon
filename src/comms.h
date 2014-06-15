@@ -35,6 +35,7 @@ Finalize the current tick's packet and send via PDC; handle parsing of input
 messages as well.
 */
 void comms_tick(void);
+void comms_start_transmit(void);
 
 void comms_set_cpu_status(uint32_t cycles_used);
 
@@ -55,12 +56,33 @@ struct connection_t {
 
     uint16_t last_rx_packet_tick;
     uint16_t last_tx_packet_tick;
-	
+
 	uint32_t rx_packets;
 	uint32_t rx_errors;
 };
 
 extern struct connection_t cpu_conn;
 extern struct connection_t gcs_conn;
+
+inline static uint16_t swap_u16(uint16_t x) {
+    return ((x & 0x00FFu) << 8u) | ((x & 0xFF00u) >> 8u);
+}
+
+inline static int16_t swap_i16(int16_t x) {
+    return (int16_t)((((uint16_t)x & 0x00FFu) << 8u) |
+                     (((uint16_t)x & 0xFF00u) >> 8u));
+}
+
+inline static uint32_t swap_u32(uint32_t x) {
+    return ((x & 0x000000FFu) << 24u) | ((x & 0x0000FF00u) << 8u) |
+           ((x & 0x00FF0000u) >> 8u) | ((x & 0xFF000000u) >> 24u);
+}
+
+inline static int32_t swap_i32(int32_t x) {
+    return (int32_t)((((uint32_t)x & 0x000000FFu) << 24u) |
+                     (((uint32_t)x & 0x0000FF00u) << 8u) |
+                     (((uint32_t)x & 0x00FF0000u) >> 8u) |
+                     (((uint32_t)x & 0xFF000000u) >> 24u));
+}
 
 #endif

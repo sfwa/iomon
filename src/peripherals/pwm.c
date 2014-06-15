@@ -89,8 +89,6 @@ void pwm_init(void) {
     /* Configure PWM enable */
     gpio_configure_pin(PWM_ENABLE_PIN, GPIO_DIR_OUTPUT | GPIO_INIT_LOW);
 
-    pwm_disable();
-
     /* Set GPIO mapping, enable PWM clock */
     gpio_enable_module_pin(PWM_0_PIN, PWM_0_FUNCTION);
     gpio_enable_module_pin(PWM_1_PIN, PWM_1_FUNCTION);
@@ -107,9 +105,6 @@ void pwm_init(void) {
 
     /* Clear out input states and enable PWM input interrupts */
     pwm_input_state = 0;
-	memset(pwm_input_state_begin, 0, sizeof(pwm_input_state_begin));
-	memset(pwm_input_values, 0, sizeof(pwm_input_values));
-    memset(pwm_trim_offsets, 0, sizeof(pwm_trim_offsets));
 
 	gpio_configure_pin(pwm_input_pins[0], GPIO_DIR_INPUT | GPIO_PULL_DOWN);
 	gpio_configure_pin(pwm_input_pins[1], GPIO_DIR_INPUT | GPIO_PULL_DOWN);
@@ -120,6 +115,11 @@ void pwm_init(void) {
         &pwm_input_interrupt_handler_1, AVR32_GPIO_IRQ_14, AVR32_INTC_INT0);
     INTC_register_interrupt(
         &pwm_input_interrupt_handler_2, AVR32_GPIO_IRQ_15, AVR32_INTC_INT0);
+
+    gpio_clear_pin_interrupt_flag(PWM_IN_0_PIN);
+    gpio_clear_pin_interrupt_flag(PWM_IN_1_PIN);
+    gpio_clear_pin_interrupt_flag(PWM_IN_2_PIN);
+    gpio_clear_pin_interrupt_flag(PWM_IN_3_PIN);
 
     gpio_enable_pin_interrupt(pwm_input_pins[0], GPIO_PIN_CHANGE);
     gpio_enable_pin_interrupt(pwm_input_pins[1], GPIO_PIN_CHANGE);
@@ -169,26 +169,23 @@ void pwm_init(void) {
 }
 
 void pwm_tick(void) {
-    uint16_t out_values[PWM_NUM_OUTPUTS];
+    static uint16_t out_values[PWM_NUM_OUTPUTS];
     struct fcs_parameter_t param;
-    size_t i;
 
     /* Handle internal/external control and failsafe logic */
     if (pwm_use_internal) {
         if (fcs_parameter_find_by_type_and_device(
                 &cpu_conn.in_log, FCS_PARAMETER_CONTROL_SETPOINT, 0, &param)){
-            out_values[0] = pwm_trim_offsets[0] + swap16(param.data.u16[0]);
+            out_values[0] = pwm_trim_offsets[0] + swap_u16(param.data.u16[0]);
             out_values[1] = (pwm_trim_offsets[1] - 32767) +
-                            swap16(param.data.u16[1]);
+                            swap_u16(param.data.u16[1]);
             out_values[2] = (pwm_trim_offsets[2] - 32767) +
-                            (65535 - swap16(param.data.u16[2]));
+                            (65535 - swap_u16(param.data.u16[2]));
 
             pwm_set_values(out_values);
             pwm_missed_internal_ticks = 0;
         } else {
-			out_values[0] = 0;
-			out_values[1] = pwm_trim_offsets[1];
-			out_values[2] = pwm_trim_offsets[2];
+            /* Retain previous output values */
             pwm_missed_internal_ticks++;
         }
 
@@ -228,10 +225,10 @@ void pwm_tick(void) {
     fcs_parameter_set_header(&param, FCS_VALUE_UNSIGNED, 16u, 3u);
     fcs_parameter_set_type(&param, FCS_PARAMETER_CONTROL_POS);
     fcs_parameter_set_device_id(&param, 0);
-    param.data.u16[0] = swap16(out_values[0] - pwm_trim_offsets[0]);
-    param.data.u16[1] = swap16(out_values[1] -
+    param.data.u16[0] = swap_u16(out_values[0] - pwm_trim_offsets[0]);
+    param.data.u16[1] = swap_u16(out_values[1] -
                                (pwm_trim_offsets[1] - 32767));
-    param.data.u16[2] = 65535 - swap16(out_values[2] -
+    param.data.u16[2] = 65535 - swap_u16(out_values[2] -
                                        (pwm_trim_offsets[2] - 32767));
     (void)fcs_log_add_parameter(&cpu_conn.out_log, &param);
 
@@ -294,15 +291,12 @@ void pwm_set_values(uint16_t pwms[PWM_NUM_OUTPUTS]) {
 
 void pwm_enable(void) {
     gpio_local_tgl_gpio_pin(PWM_ENABLE_PIN);
-    LED_OFF(LED2_GPIO);
 
     pwm_is_enabled = true;
 }
 
 void pwm_disable(void) {
     gpio_local_clr_gpio_pin(PWM_ENABLE_PIN);
-    memset(pwm_out_values, 0, sizeof(pwm_out_values));
-    LED_ON(LED2_GPIO);
 
     pwm_is_enabled = false;
 }

@@ -60,7 +60,7 @@ static struct twim_transaction_t read_sequence[] = {
 };
 
 static struct i2c_device_t ms5611 = {
-    .speed = 100000u,
+    .speed = 150000u,
     .power_delay = 500u,
     .init_timeout = 900u,
     .read_timeout = 200u,
@@ -198,8 +198,8 @@ void ms5611_tick(void) {
 				Convert temp to range [0, 12500] by adding 4000; convert
 				pressure to range [500, 60000] by dividing by 2.
 				*/
-                param.data.i16[0] = swap16(conv_result.p >> 1u);
-                param.data.i16[1] = swap16(conv_result.temp + 4000);
+                param.data.u16[0] = swap_u16(conv_result.p >> 1u);
+                param.data.u16[1] = swap_u16(conv_result.temp + 4000);
                 (void)fcs_log_add_parameter(&cpu_conn.out_log, &param);
             } else {
                 /* Something went wrong */
