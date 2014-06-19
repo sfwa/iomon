@@ -45,7 +45,6 @@
 
 #include "conf_clock.h"
 #include <board.h>
-#include <genclk.h>
 
 /**
  * \defgroup clk_group Clock Management
@@ -134,7 +133,6 @@
  */
 
 #include <board.h>
-#include <genclk.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -1330,40 +1328,6 @@ extern void sysclk_set_prescalers(unsigned int cpu_shift,
         unsigned int pba_shift, unsigned int pbb_shift,
         unsigned int pbc_shift);
 extern void sysclk_set_source(uint_fast8_t src);
-
-#if defined(CONFIG_USBCLK_SOURCE) || defined(__DOXYGEN__)
-
-/**
- * \def USBCLK_STARTUP_TIMEOUT
- * \brief Number of us to wait for USB clock to start
- */
-#if CONFIG_USBCLK_SOURCE==USBCLK_SRC_OSC0
-#  define USBCLK_STARTUP_TIMEOUT    (OSC0_STARTUP_TIMEOUT*(1000000/AVR32_SCIF_RCOSC_FREQUENCY))
-#elif CONFIG_USBCLK_SOURCE==USBCLK_SRC_OSC1
-#  define USBCLK_STARTUP_TIMEOUT    (OSC1_STARTUP_TIMEOUT*(1000000/AVR32_SCIF_RCOSC_FREQUENCY))
-#elif CONFIG_USBCLK_SOURCE==USBCLK_SRC_PLL0
-#  if CONFIG_PLL0_SOURCE==PLL_SRC_OSC0 
-#    define USBCLK_STARTUP_TIMEOUT    (OSC0_STARTUP_TIMEOUT*(1000000/AVR32_SCIF_RCOSC_FREQUENCY))
-#  elif CONFIG_PLL0_SOURCE==PLL_SRC_OSC1
-#    define USBCLK_STARTUP_TIMEOUT    (OSC1_STARTUP_TIMEOUT*(1000000/AVR32_SCIF_RCOSC_FREQUENCY))
-#  else
-#    error Unknown value for CONFIG_PLL0_SOURCE, see conf_clock.h.
-#  endif
-#elif CONFIG_USBCLK_SOURCE==USBCLK_SRC_PLL1
-#  if CONFIG_PLL1_SOURCE==PLL_SRC_OSC0
-#    define USBCLK_STARTUP_TIMEOUT    (OSC0_STARTUP_TIMEOUT*(1000000/AVR32_SCIF_RCOSC_FREQUENCY))
-#  elif CONFIG_PLL1_SOURCE==PLL_SRC_OSC1
-#    define USBCLK_STARTUP_TIMEOUT    (OSC1_STARTUP_TIMEOUT*(1000000/AVR32_SCIF_RCOSC_FREQUENCY))
-#  else
-#    error Unknown value for CONFIG_PLL1_SOURCE, see conf_clock.h.
-#  endif
-#else
-#  error Unknown value for CONFIG_USBCLK_SOURCE, see conf_clock.h.
-#endif
-
-extern void sysclk_enable_usb(void);
-extern void sysclk_disable_usb(void);
-#endif
 
 extern void sysclk_init(void);
 

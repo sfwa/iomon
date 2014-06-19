@@ -25,16 +25,6 @@ SOFTWARE.
 
 #include "spim_pdca.h"
 
-/*
-Separate SPI assert function -- if there's an assertion failure, hang forever
-unless CONTINUE_ON_ASSERT is defined, in which case the MCU should be reset.
-*/
-#ifndef CONTINUE_ON_ASSERT
-#define SPIAssert(x) Assert(x)
-#else
-#define SPIAssert(x) if (!(x)) { wdt_reset_mcu(); }
-#endif
-
 enum spi_state_t {
     SPI_POWERING_UP = 0,
     SPI_INIT_SEQUENCE,
@@ -76,7 +66,7 @@ struct spi_device_t {
 
 static inline void spi_device_state_transition(struct spi_device_t *dev,
         enum spi_state_t new_state) {
-    SPIAssert(SPI_POWERING_UP <= new_state && new_state <= SPI_POWERING_DOWN);
+    fcs_assert(new_state <= SPI_POWERING_DOWN);
 
     dev->state = new_state;
     dev->state_timer = 0;

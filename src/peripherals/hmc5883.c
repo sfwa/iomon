@@ -30,7 +30,7 @@ SOFTWARE.
 #include "hmc5883.h"
 #include "plog/parameter.h"
 
-static uint8_t hmc5883_inbuf[6];
+static volatile uint8_t hmc5883_inbuf[6];
 
 static struct twim_transaction_t init_sequence[] = {
     /*
@@ -41,20 +41,20 @@ static struct twim_transaction_t init_sequence[] = {
     */
 
     /* Write 0x78 to CRA -- 8 samples per measurement, 75Hz nominal, no bias */
-    {HMC5883_DEVICE_ADDR, 2u, {0x00u, 0x78u}, 0, NULL},
+    {HMC5883_DEVICE_ADDR, 2u, {0x00u, 0x78u}, 0, NULL, 0},
     /* Write 0x00 to CRB -- gain = 2 (1090LSB/Ga) */
-    {HMC5883_DEVICE_ADDR, 2u, {0x01u, 0x20u}, 0, NULL},
+    {HMC5883_DEVICE_ADDR, 2u, {0x01u, 0x20u}, 0, NULL, 0},
     TWIM_TRANSACTION_SENTINEL
 };
 
 static struct twim_transaction_t read_sequence[] = {
     /* Write single-measurement start to MODE register (0x01) */
-    {HMC5883_DEVICE_ADDR, 2u, {0x02u, 0x01u}, 0, NULL},
+    {HMC5883_DEVICE_ADDR, 2u, {0x02u, 0x01u}, 0, NULL, 0},
     /*
     Read 6 bytes from DXRA -- returns:
     DXRA, DXRB, DZRA, DZRB, DYRA, DYRB (A=MSB, B=LSB)
     */
-    {HMC5883_DEVICE_ADDR, 1u, {0x03u}, 6u, hmc5883_inbuf},
+    {HMC5883_DEVICE_ADDR, 1u, {0x03u}, 6u, hmc5883_inbuf, 0},
     TWIM_TRANSACTION_SENTINEL
 };
 
@@ -119,7 +119,9 @@ void hmc5883_measure(void) {
 
         if (read_result == TWIM_TRANSACTION_EXECUTED) {
             /* Convert the result and update the comms module */
-            memcpy(measurement, hmc5883_inbuf, sizeof(measurement));
+            measurement[0] = hmc5883_inbuf[0];
+			measurement[1] = hmc5883_inbuf[1];
+			measurement[2] = hmc5883_inbuf[2];
 
             /*
             Magnetic field over-/underflow -- should maybe adjust sensitivity

@@ -46,7 +46,6 @@ void spi_device_init(struct spi_device_t *dev) {
     gpio_enable_module_pin(dev->mosi_pin_id, dev->mosi_function);
     gpio_enable_module_pin(dev->cs_pin_id, dev->cs_function);
     gpio_enable_module_pin(dev->clk_pin_id, dev->clk_function);
-    sysclk_enable_pba_module(dev->sysclk_id);
 
     /* Configure power enable pin */
     if (dev->enable_pin_id) {
@@ -58,6 +57,8 @@ void spi_device_init(struct spi_device_t *dev) {
 }
 
 void spi_device_tick(struct spi_device_t *dev) {
+    fcs_assert(dev);
+    fcs_assert(dev->read_sequence && dev->init_sequence);
     fcs_assert(dev->power_delay && dev->read_timeout && dev->init_timeout);
 
     dev->state_timer++;

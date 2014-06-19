@@ -353,7 +353,7 @@ struct fcs_parameter_t *restrict parameter) {
     within the packet.
     */
     size_t length = fcs_parameter_get_length(parameter);
-    if (plog->length + length > FCS_LOG_MAX_LENGTH) {
+    if (!length || plog->length + length > FCS_LOG_MAX_LENGTH) {
         return false;
     }
 
@@ -376,9 +376,12 @@ uint8_t device_id) {
 
     size_t i, length = 0;
 
-    for (i = 5u; i < plog->length; i += length) {
+    for (i = 5u; i < plog->length - 3u; i += length) {
         length = _extract_length(plog->data[i]);
-        if (!length) {
+        if (!length || length > sizeof(struct fcs_parameter_t) ||
+                i + length > plog->length ||
+                plog->data[i + offsetof(struct fcs_parameter_t, type)] ==
+                FCS_PARAMETER_INVALID) {
             return;
         }
 
@@ -403,9 +406,12 @@ uint8_t device_id, struct fcs_parameter_t *restrict out_parameter) {
 
     size_t i, length;
 
-    for (i = 5u; i < plog->length;) {
+    for (i = 5u; i < plog->length - 3u; i += length) {
         length = _extract_length(plog->data[i]);
-        if (!length) {
+        if (!length || length > sizeof(struct fcs_parameter_t) ||
+                i + length > plog->length ||
+                plog->data[i + offsetof(struct fcs_parameter_t, type)] ==
+                FCS_PARAMETER_INVALID) {
             return false;
         }
 
@@ -415,8 +421,6 @@ uint8_t device_id, struct fcs_parameter_t *restrict out_parameter) {
             /* Return false if the parameter is found but invalid */
             return _validate_parameter(out_parameter);
         }
-
-        i += length;
     }
 
     return false;
@@ -438,9 +442,13 @@ struct fcs_parameter_t *restrict out_parameters, size_t max_parameters) {
 
     size_t i, length, count = 0;
 
-    for (i = 5u; i < plog->length && count < max_parameters;) {
+    for (i = 5u; i < plog->length - 3u && count < max_parameters;
+            i += length) {
         length = _extract_length(plog->data[i]);
-        if (!length) {
+        if (!length || length > sizeof(struct fcs_parameter_t) ||
+                i + length > plog->length ||
+                plog->data[i + offsetof(struct fcs_parameter_t, type)] ==
+                FCS_PARAMETER_INVALID) {
             return false;
         }
 
@@ -451,8 +459,6 @@ struct fcs_parameter_t *restrict out_parameters, size_t max_parameters) {
                 count++;
             }
         }
-
-        i += length;
     }
 
     return count;

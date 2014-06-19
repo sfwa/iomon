@@ -49,40 +49,54 @@ static uint32_t pwm_missed_internal_ticks = 0;
 static uint32_t pwm_missed_external_ticks = 0;
 static uint32_t pwm_trim_measurement_ticks;
 
-static volatile uint8_t pwm_input_state;
 static volatile uint32_t pwm_input_state_begin[PWM_NUM_INPUTS];
-static volatile uint16_t pwm_input_values[PWM_NUM_INPUTS];
-static uint32_t pwm_input_pins[PWM_NUM_INPUTS] =
+static volatile uint16_t pwm_input_next[PWM_NUM_INPUTS];
+static uint16_t pwm_input_values[PWM_NUM_INPUTS];
+static const uint32_t pwm_input_pins[PWM_NUM_INPUTS] =
     {PWM_IN_0_PIN, PWM_IN_1_PIN, PWM_IN_2_PIN, PWM_IN_3_PIN};
 
 
-static void pwm_check_inputs(void);
-
 /* Interrupt handler for PWM input */
 __attribute__((__interrupt__))
-static void pwm_input_interrupt_handler_1 (void)
-{
-    cpu_irq_disable();
+static void pwm_input_interrupt_handler(void) {
+    const uint32_t port_idx = PWM_IN_0_PIN >> 5u;
+    uint32_t cycle_count, i, delta, ifr;
 
-    pwm_check_inputs();
+    ifr = AVR32_GPIO.port[port_idx].ifr;
+    cycle_count = Get_system_register(AVR32_COUNT);
 
-    gpio_clear_pin_interrupt_flag(PWM_IN_0_PIN);
-    gpio_clear_pin_interrupt_flag(PWM_IN_1_PIN);
-    gpio_clear_pin_interrupt_flag(PWM_IN_2_PIN);
+    /*
+    Check PWM input pins; if there's a state change, reset the current count.
+    Normally called from interrupt.
+    */
+    for (i = 0; i < PWM_NUM_INPUTS; i++) {
+        if ((ifr >> (pwm_input_pins[i] & 0x1Fu)) & 1u) {
+            /*
+            If the current pin state is low, update the PWM value according to
+            the delta.
+            */
+            if (!gpio_local_get_pin_value(pwm_input_pins[i])) {
+                delta = cycle_count - pwm_input_state_begin[i];
 
-    cpu_irq_enable();
-}
+                /*
+                Now we have number of cycles the input was high for; we
+                need a mapping from 0.85-2.15ms to the range [0, 65535].
+                */
+                if (delta <= 42829u) {
+                    pwm_input_next[i] = 0;
+                } else if (delta >= 108264u) {
+                    pwm_input_next[i] = 65535u;
+                } else {
+                    pwm_input_next[i] = (delta - 42829u) & 0xffffu;
+                }
+            }
 
-__attribute__((__interrupt__))
-static void pwm_input_interrupt_handler_2 (void)
-{
-    cpu_irq_disable();
+            pwm_input_state_begin[i] = cycle_count;
+        }
+    }
 
-    pwm_check_inputs();
-
-    gpio_clear_pin_interrupt_flag(PWM_IN_3_PIN);
-
-    cpu_irq_enable();
+	AVR32_GPIO.port[port_idx].ifrc = ifr;
+    AVR32_GPIO.port[port_idx].ifr;
 }
 
 void pwm_init(void) {
@@ -94,7 +108,6 @@ void pwm_init(void) {
     gpio_enable_module_pin(PWM_1_PIN, PWM_1_FUNCTION);
     gpio_enable_module_pin(PWM_2_PIN, PWM_2_FUNCTION);
     gpio_enable_module_pin(PWM_3_PIN, PWM_3_FUNCTION);
-    sysclk_enable_pba_module(PWM_SYSCLK);
 
     /* Set internal mode */
     pwm_transition_pulses = 0;
@@ -103,74 +116,81 @@ void pwm_init(void) {
     pwm_missed_external_ticks = 0;
     pwm_trim_measurement_ticks = 0;
 
-    /* Clear out input states and enable PWM input interrupts */
-    pwm_input_state = 0;
-
+    /* Enable PWM input interrupts */
 	gpio_configure_pin(pwm_input_pins[0], GPIO_DIR_INPUT | GPIO_PULL_DOWN);
 	gpio_configure_pin(pwm_input_pins[1], GPIO_DIR_INPUT | GPIO_PULL_DOWN);
 	gpio_configure_pin(pwm_input_pins[2], GPIO_DIR_INPUT | GPIO_PULL_DOWN);
 	gpio_configure_pin(pwm_input_pins[3], GPIO_DIR_INPUT | GPIO_PULL_DOWN);
 
-    INTC_register_interrupt(
-        &pwm_input_interrupt_handler_1, AVR32_GPIO_IRQ_14, AVR32_INTC_INT0);
-    INTC_register_interrupt(
-        &pwm_input_interrupt_handler_2, AVR32_GPIO_IRQ_15, AVR32_INTC_INT0);
-
-    gpio_clear_pin_interrupt_flag(PWM_IN_0_PIN);
-    gpio_clear_pin_interrupt_flag(PWM_IN_1_PIN);
-    gpio_clear_pin_interrupt_flag(PWM_IN_2_PIN);
-    gpio_clear_pin_interrupt_flag(PWM_IN_3_PIN);
-
+    cpu_irq_disable();
+    INTC_init_interrupts();
+    INTC_register_interrupt(&pwm_input_interrupt_handler,
+                            AVR32_GPIO_IRQ_0 + pwm_input_pins[0] / 8,
+                            AVR32_INTC_INT0);
+    INTC_register_interrupt(&pwm_input_interrupt_handler,
+                            AVR32_GPIO_IRQ_0 + pwm_input_pins[3] / 8,
+                            AVR32_INTC_INT0);
     gpio_enable_pin_interrupt(pwm_input_pins[0], GPIO_PIN_CHANGE);
     gpio_enable_pin_interrupt(pwm_input_pins[1], GPIO_PIN_CHANGE);
     gpio_enable_pin_interrupt(pwm_input_pins[2], GPIO_PIN_CHANGE);
     gpio_enable_pin_interrupt(pwm_input_pins[3], GPIO_PIN_CHANGE);
+    cpu_irq_enable();
 
     /* Initialize PWM frequency and mode */
-    volatile avr32_pwm_t *pwm = &AVR32_PWM;
-    pwm->idr1 = 0xFFFFFFFFu;
-    pwm->isr1;
-    pwm->idr2 = 0xFFFFFFFFu;
-    pwm->isr2;
+    AVR32_PWM.idr1 = 0xFFFFFFFFu;
+    AVR32_PWM.isr1;
+    AVR32_PWM.idr2 = 0xFFFFFFFFu;
+    AVR32_PWM.isr2;
 
     /* Set PWM mode register. */
-    pwm->clk =
+    AVR32_PWM.clk =
         (1u << AVR32_PWM_DIVA_OFFSET) | /* run CLKA at full CPU clock speed
-                                           (48MHz) */
+                                           (52MHz) */
         (0 << AVR32_PWM_DIVB_OFFSET) |  /* disable CLKB */
         (0 << AVR32_PWM_PREA_OFFSET) |  /* no pre-division */
         (0 << AVR32_PWM_PREB_OFFSET) |
         (0 << AVR32_PWM_CLKSEL_OFFSET); /* use CLK_PWM as source */
 
     /* Delay for at least 2 clock periods (datasheet 33.6.1) */
-    for (volatile uint8_t z = 0; z < 5u; z++);
+    volatile uint8_t z;
+    for (z = 0; z < 5u; z++);
 
     /* Disable all channels */
-    pwm->dis = 0x0fu;
+    AVR32_PWM.dis = 0x0fu;
+
+    for (z = 0; z < 5u; z++);
 
     /* Set all PWM channels to be synchronous */
-    pwm->SCM.updm = 0;
-    pwm->scm |= (0xfu << AVR32_PWM_SCM_SYNC0_OFFSET);
+    AVR32_PWM.SCM.updm = 0;
+    AVR32_PWM.scm |= (0xfu << AVR32_PWM_SCM_SYNC0_OFFSET);
 
     for (uint8_t i = 0; i < PWM_NUM_OUTPUTS; i++) {
         /* Set polarity so cycle starts high. */
-        pwm->channel[i].cmr = AVR32_PWM_CPOL_MASK;
+        AVR32_PWM.channel[i].cmr = AVR32_PWM_CPOL_MASK;
         /* 1.5ms duty cycle */
-        pwm->channel[i].cdtyupd = 75497u;
+        AVR32_PWM.channel[i].cdtyupd = 75497u;
         /* 48Hz period */
-        pwm->channel[i].cprdupd = 1048575u;
+        AVR32_PWM.channel[i].cprdupd = 1048575u;
     }
 
     /* Write the channel value update */
-    pwm->SCUC.updulock = 1u;
+    AVR32_PWM.SCUC.updulock = 1u;
 
     /* Enable all channels */
-    pwm->ena = 0x0fu;
+    AVR32_PWM.ena = 0x0fu;
 }
 
 void pwm_tick(void) {
     static uint16_t out_values[PWM_NUM_OUTPUTS];
     struct fcs_parameter_t param;
+
+    /* Get the latest PWM input values without being interrupted */
+    cpu_irq_disable();
+    pwm_input_values[0] = pwm_input_next[0];
+    pwm_input_values[1] = pwm_input_next[1];
+    pwm_input_values[2] = pwm_input_next[2];
+    pwm_input_values[3] = pwm_input_next[3];
+    cpu_irq_enable();
 
     /* Handle internal/external control and failsafe logic */
     if (pwm_use_internal) {
@@ -190,7 +210,7 @@ void pwm_tick(void) {
         }
 
         if (pwm_missed_internal_ticks > PWM_FAILSAFE_INTERNAL_TICKS) {
-            pwm_terminate_flight();
+            // pwm_terminate_flight(); FIXME
         }
     } else {
         out_values[0] = pwm_input_values[0];
@@ -198,7 +218,10 @@ void pwm_tick(void) {
         out_values[2] = pwm_input_values[2];
 
         pwm_missed_external_ticks = 0;
-        /* FIXME: detect R/C failsafe condition */
+        /*
+        FIXME: detect R/C failsafe condition -- based on simultaneous throttle
+        off and switch to auto.
+        */
 
         if (pwm_missed_external_ticks > PWM_FAILSAFE_EXTERNAL_TICKS) {
             pwm_terminate_flight();
@@ -227,9 +250,9 @@ void pwm_tick(void) {
     fcs_parameter_set_device_id(&param, 0);
     param.data.u16[0] = swap_u16(out_values[0] - pwm_trim_offsets[0]);
     param.data.u16[1] = swap_u16(out_values[1] -
-                               (pwm_trim_offsets[1] - 32767));
-    param.data.u16[2] = 65535 - swap_u16(out_values[2] -
-                                       (pwm_trim_offsets[2] - 32767));
+                               (pwm_trim_offsets[1] - 32767u));
+    param.data.u16[2] = 65535u - swap_u16(out_values[2] -
+                                       (pwm_trim_offsets[2] - 32767u));
     (void)fcs_log_add_parameter(&cpu_conn.out_log, &param);
 
     /* Output control mode -- 1 for internal, 0 for external (R/C) */
@@ -259,13 +282,12 @@ void pwm_tick(void) {
 }
 
 void pwm_set_values(uint16_t pwms[PWM_NUM_OUTPUTS]) {
-    volatile avr32_pwm_t *pwm = &AVR32_PWM;
     size_t i;
     uint32_t pwm_val;
     bool updated = false;
 
     /* Make sure the previous update has been applied */
-    if (!pwm->SCUC.updulock) {
+    if (!AVR32_PWM.SCUC.updulock) {
         for (i = 0; i < PWM_NUM_OUTPUTS; i++) {
             /*
             Channel period is 1048576 cycles long, at 48Hz; PWM pulse width is
@@ -275,8 +297,8 @@ void pwm_set_values(uint16_t pwms[PWM_NUM_OUTPUTS]) {
             pwm_val = (uint32_t)pwms[i] + 42729u;
             if (pwm_val != pwm_out_values[i]) {
                 /* Change PWM duty cycle for the current channel (20-bit) */
-                pwm->channel[i].cdtyupd = pwm_val & 0x000fffffu;
-                pwm->channel[i].cprdupd = 1048575u;
+                AVR32_PWM.channel[i].cdtyupd = pwm_val & 0x000fffffu;
+                AVR32_PWM.channel[i].cprdupd = 1048575u;
 
                 pwm_out_values[i] = pwm_val;
                 updated = true;
@@ -284,7 +306,7 @@ void pwm_set_values(uint16_t pwms[PWM_NUM_OUTPUTS]) {
         }
 
         if (updated) {
-            pwm->SCUC.updulock = 1u;
+            AVR32_PWM.SCUC.updulock = 1u;
         }
     }
 }
@@ -301,55 +323,7 @@ void pwm_disable(void) {
     pwm_is_enabled = false;
 }
 
-static void pwm_check_inputs(void) {
-    /*
-    Check PWM input pins; if there's a state change, reset the current count.
-    Normally called from interrupt.
-    */
-    uint32_t cur_state = 0, pins_changed;
-
-    for (uint8_t i = 0; i < PWM_NUM_INPUTS; i++) {
-        cur_state |= gpio_local_get_pin_value(pwm_input_pins[i]) << i;
-    }
-
-    pins_changed = cur_state ^ pwm_input_state;
-
-    if (pins_changed) {
-        uint32_t count = Get_system_register(AVR32_COUNT);
-
-        for (uint8_t i = 0; i < PWM_NUM_INPUTS; i++) {
-            if (pins_changed & (1u << i)) {
-                /*
-                If the last input state was high, update the PWM value
-                according to the delta
-                */
-                if (pwm_input_state & (1u << i)) {
-                    uint32_t delta = count - pwm_input_state_begin[i];
-
-                    /*
-                    Now we have number of cycles the input was high for; we
-                    need a mapping from 0.85-2.15ms to the range [0, 65535].
-                    */
-                    if (delta <= 42829u) {
-                        pwm_input_values[i] = 0;
-                    } else if (delta >= 108264u) {
-                        pwm_input_values[i] = 65535u;
-                    } else {
-                        pwm_input_values[i] = (delta - 42829u) & 0xffffu;
-                    }
-                }
-
-                pwm_input_state_begin[i] = count;
-            }
-        }
-
-        /* Update current input state */
-        pwm_input_state = cur_state & 0xfu;
-    }
-}
-
 void pwm_terminate_flight(void) {
-	return;
     /*
     Infinite loop to lock out any possibility of recovery -- reset the WDT
     each time as well otherwise the system will restart itself.
@@ -368,7 +342,6 @@ void pwm_terminate_flight(void) {
 		*/
 
         pwm_disable();
-        wdt_clear();
     }
     cpu_irq_restore(flags);
 

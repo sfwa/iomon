@@ -30,11 +30,11 @@ SOFTWARE.
 #include "ms4525.h"
 #include "plog/parameter.h"
 
-static uint8_t data_buf[4];
+static volatile uint8_t data_buf[4];
 
 static struct twim_transaction_t read_sequence[] = {
-    {MS4525_DEVICE_ADDR, 0u, {0x00u}, 0, NULL},      /* READ_MR */
-    {MS4525_DEVICE_ADDR, 0u, {0x00u}, 4u, data_buf},   /* READ_DF4 */
+    {MS4525_DEVICE_ADDR, 0u, {0x00u}, 0, NULL, 0},      /* READ_MR */
+    {MS4525_DEVICE_ADDR, 0u, {0x00u}, 4u, data_buf, 0},   /* READ_DF4 */
     TWIM_TRANSACTION_SENTINEL
 };
 

@@ -585,26 +585,6 @@ extern uint8_t adcifa_configure_sequencer(volatile avr32_adcifa_t *adcifa,
 		uint8_t sequencer,
 		adcifa_sequencer_opt_t *p_adcifa_sequencer_opt,
 		adcifa_sequencer_conversion_opt_t *p_adcifa_sequencer_conversion_opt);
-void adcifa_configure_window_monitor(volatile avr32_adcifa_t *adcifa,
-		uint8_t sequencer,
-		adcifa_window_monitor_opt_t *adc_window_monitor_opt);
-void adcifa_start_sequencer(volatile avr32_adcifa_t *adcifa,
-		uint8_t sequencer);
-bool adcifa_check_eoc(volatile avr32_adcifa_t *adcifa, uint8_t sequencer);
-bool adcifa_check_eos(volatile avr32_adcifa_t *adcifa, uint8_t sequencer);
-uint8_t adcifa_get_values_from_sequencer(volatile avr32_adcifa_t *adcifa,
-		uint8_t sequencer,
-		adcifa_sequencer_opt_t *p_adcifa_sequencer_opt,
-		int16_t *adcifa_values);
-void adcifa_start_itimer(volatile avr32_adcifa_t *adcifa,
-		uint32_t timer_count);
-void adcifa_stop_itimer(volatile avr32_adcifa_t *adcifa);
-void adcifa_enable_interrupt(volatile avr32_adcifa_t *adcifa,
-		uint32_t interrupt_flags);
-void adcifa_disable_interrupt(volatile avr32_adcifa_t *adcifa,
-		uint32_t interrupt_flags);
-void adcifa_clear_interrupt(volatile avr32_adcifa_t *adcifa,
-		uint32_t interrupt_flags);
 
 /**
  * @}

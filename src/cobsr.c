@@ -34,7 +34,7 @@ SOFTWARE.
 #include "fcsassert.h"
 
 struct cobsr_encode_result cobsr_encode(uint8_t *dst_buf_ptr,
-uint32_t dst_buf_len, const uint8_t * src_ptr, uint32_t src_len) {
+size_t dst_buf_len, const uint8_t * src_ptr, size_t src_len) {
     /* Asserts ensure that the main loop terminates, and that buffers do not
     overlap */
     fcs_assert(dst_buf_ptr);
@@ -45,7 +45,7 @@ uint32_t dst_buf_len, const uint8_t * src_ptr, uint32_t src_len) {
                dst_buf_ptr > src_ptr + src_len);
 
 
-    struct cobsr_encode_result result       = { 0, COBSR_ENCODE_OK };
+    struct cobsr_encode_result result = { 0, COBSR_ENCODE_OK };
     const uint8_t *     src_end_ptr         = src_ptr + src_len;
     uint8_t *           dst_buf_end_ptr     = dst_buf_ptr + dst_buf_len;
     uint8_t *           dst_code_write_ptr  = dst_buf_ptr;
@@ -80,26 +80,23 @@ uint32_t dst_buf_len, const uint8_t * src_ptr, uint32_t src_len) {
             if (search_len == 0xFFu) {
                 /* We have a long string of non-zero bytes, so we need
                  * to write out a length code of 0xFF. */
-                *dst_code_write_ptr = search_len;
+                *dst_code_write_ptr = 0xFFu;
                 dst_code_write_ptr = dst_write_ptr++;
                 search_len = 1u;
             }
         }
     }
 
-    /*
-    We've reached the end of the source data (or possibly run out of output
-    buffer). Finalise the remaining output. In particular, write the code
-    (length) byte.
-
-    For COBS/R, the final code (length) byte is special: if the final data
-    byte is greater than or equal to what would normally be the final code
-    (length) byte, then replace the final code byte with the final data byte,
-    and remove the final data byte from the end of the sequence. This saves
-    one byte in the output.
-
-    Update the pointer to calculate the final output length.
-    */
+    /* We've reached the end of the source data (or possibly run out of output buffer)
+     * Finalise the remaining output. In particular, write the code (length) byte.
+     *
+     * For COBS/R, the final code (length) byte is special: if the final data byte is
+     * greater than or equal to what would normally be the final code (length) byte,
+     * then replace the final code byte with the final data byte, and remove the final
+     * data byte from the end of the sequence. This saves one byte in the output.
+     *
+     * Update the pointer to calculate the final output length.
+     */
     if (dst_code_write_ptr >= dst_buf_end_ptr) {
         /* We've run out of output buffer to write the code byte. */
         result.status |= COBSR_ENCODE_OUT_BUFFER_OVERFLOW;
@@ -124,7 +121,7 @@ uint32_t dst_buf_len, const uint8_t * src_ptr, uint32_t src_len) {
 
 
 struct cobsr_decode_result cobsr_decode(uint8_t *dst_buf_ptr,
-uint32_t dst_buf_len, const uint8_t * src_ptr, uint32_t src_len) {
+size_t dst_buf_len, const uint8_t * src_ptr, size_t src_len) {
     /* Asserts ensure that the main loop terminates, and that buffers do not
     overlap */
     fcs_assert(dst_buf_ptr);
@@ -134,7 +131,7 @@ uint32_t dst_buf_len, const uint8_t * src_ptr, uint32_t src_len) {
     fcs_assert(dst_buf_ptr + dst_buf_len < src_ptr ||
                dst_buf_ptr > src_ptr + src_len);
 
-    struct cobsr_decode_result result       = { 0, COBSR_DECODE_OK };
+    struct cobsr_decode_result result = { 0, COBSR_DECODE_OK };
     const uint8_t *     src_end_ptr         = src_ptr + src_len;
     uint8_t *           dst_buf_end_ptr     = dst_buf_ptr + dst_buf_len;
     uint8_t *           dst_write_ptr       = dst_buf_ptr;
@@ -142,7 +139,7 @@ uint32_t dst_buf_len, const uint8_t * src_ptr, uint32_t src_len) {
     size_t              remaining_output_bytes;
     size_t              num_output_bytes;
     uint8_t             src_byte;
-    uint8_t             i;
+    size_t              i;
     uint8_t             len_code;
 
     for (;;) {
@@ -153,19 +150,22 @@ uint32_t dst_buf_len, const uint8_t * src_ptr, uint32_t src_len) {
         }
 
         /* Calculate remaining input bytes */
-        remaining_input_bytes = src_end_ptr - src_ptr;
+        fcs_assert(src_end_ptr - src_ptr >= 0);
+        remaining_input_bytes = (size_t)(src_end_ptr - src_ptr);
 
         if ((len_code - 1u) < remaining_input_bytes) {
             num_output_bytes = len_code - 1u;
 
             /* Check length code against remaining output buffer space */
-            remaining_output_bytes = dst_buf_end_ptr - dst_write_ptr;
+            fcs_assert(dst_buf_end_ptr - dst_write_ptr >= 0);
+            remaining_output_bytes =
+                (size_t)(dst_buf_end_ptr - dst_write_ptr);
             if (num_output_bytes > remaining_output_bytes) {
                 result.status |= COBSR_DECODE_OUT_BUFFER_OVERFLOW;
                 num_output_bytes = remaining_output_bytes;
             }
 
-            fcs_assert(num_output_bytes <= 256u);
+            fcs_assert(num_output_bytes <= 1024u);
             for (i = num_output_bytes; i != 0; i--) {
                 src_byte = *src_ptr++;
                 if (src_byte == 0) {
@@ -189,13 +189,15 @@ uint32_t dst_buf_len, const uint8_t * src_ptr, uint32_t src_len) {
             num_output_bytes = remaining_input_bytes;
 
             /* Check length code against remaining output buffer space */
-            remaining_output_bytes = dst_buf_end_ptr - dst_write_ptr;
+            fcs_assert(dst_buf_end_ptr - dst_write_ptr >= 0);
+            remaining_output_bytes =
+                (size_t)(dst_buf_end_ptr - dst_write_ptr);
             if (num_output_bytes > remaining_output_bytes) {
                 result.status |= COBSR_DECODE_OUT_BUFFER_OVERFLOW;
                 num_output_bytes = remaining_output_bytes;
             }
 
-            fcs_assert(num_output_bytes <= 256u);
+            fcs_assert(num_output_bytes <= 1024u);
             for (i = num_output_bytes; i != 0; i--) {
                 src_byte = *src_ptr++;
                 if (src_byte == 0) {
@@ -205,7 +207,7 @@ uint32_t dst_buf_len, const uint8_t * src_ptr, uint32_t src_len) {
             }
 
             /* Write final data byte, if applicable for COBS/R encoding. */
-            if (len_code - 1 > remaining_input_bytes) {
+            if (len_code - 1u > remaining_input_bytes) {
                 if (dst_write_ptr >= dst_buf_end_ptr) {
                     result.status |= COBSR_DECODE_OUT_BUFFER_OVERFLOW;
                 } else {

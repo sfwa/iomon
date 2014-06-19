@@ -27,31 +27,39 @@ SOFTWARE.
 #include "spim_pdca.h"
 
 inline static void spim_pdca_enable(volatile avr32_pdca_channel_t *pdca,
-void *buffer, uint32_t nbytes, uint32_t pid);
+volatile void *buffer, uint32_t nbytes, uint32_t pid);
 
 inline static void spim_pdca_enable(volatile avr32_pdca_channel_t *pdca,
-void *buffer, uint32_t nbytes, uint32_t pid) {
+volatile void *buffer, uint32_t nbytes, uint32_t pid) {
     fcs_assert(pdca);
-    fcs_assert(nbytes <= 255u);
+    fcs_assert(nbytes <= 16u);
     fcs_assert(!nbytes || buffer);
+
+    pdca->cr = AVR32_PDCA_TDIS_MASK;
 
     if (pdca->tcr) {
         pdca->tcr = 0;
     }
 
-    pdca->cr = AVR32_PDCA_TDIS_MASK;
-    pdca->cr = AVR32_PDCA_ECLR_MASK;
-    pdca->mar = (uint32_t)buffer;
-    pdca->tcr = nbytes;
-    pdca->psr = pid;
-    pdca->marr = 0;
-    pdca->tcrr = 0;
-    pdca->mr = AVR32_PDCA_BYTE << AVR32_PDCA_SIZE_OFFSET;
-    pdca->isr;
+    if (nbytes) {
+        pdca->idr = 0xFFFFFFFFu;
+        pdca->mar = (uint32_t)buffer;
+        pdca->tcr = nbytes;
+        pdca->psr = pid;
+        pdca->marr = 0;
+        pdca->tcrr = 0;
+        pdca->mr = AVR32_PDCA_BYTE << AVR32_PDCA_SIZE_OFFSET;
+        pdca->cr = AVR32_PDCA_ECLR_MASK;
+        pdca->isr;
+    }
 }
 
 void spim_pdca_init(struct spim_pdca_cfg_t *cfg, uint32_t speed_hz) {
     fcs_assert(cfg);
+    fcs_assert(cfg->spim && (cfg->spim == &AVR32_SPI0 ||
+                             cfg->spim == &AVR32_SPI1));
+    fcs_assert(cfg->rx_pdca_num < AVR32_PDCA_CHANNEL_LENGTH &&
+               cfg->tx_pdca_num < AVR32_PDCA_CHANNEL_LENGTH);
     fcs_assert(1000000u <= speed_hz && speed_hz <= 20000000u);
 
     /* Clear PDCAs */
@@ -61,12 +69,10 @@ void spim_pdca_init(struct spim_pdca_cfg_t *cfg, uint32_t speed_hz) {
         cfg->rx_pid);
 
     /* Initialize the SPI device clock -- PBC for SPI0, PBA for SPI1 */
-    uint32_t f_pb = sysclk_get_pba_hz();
-    uint32_t f_prescaled = f_pb / speed_hz;
+    uint32_t f_prescaled = CONFIG_MAIN_HZ / speed_hz;
     fcs_assert(f_prescaled <= 0xffu);
 
     /* Set up the SPI registers */
-    irqflags_t flags = cpu_irq_save();
     cfg->spim->idr = 0xffffffffu;
     cfg->spim->cr = AVR32_SPI_CR_SPIEN_MASK;
     cfg->spim->cr = AVR32_SPI_CR_SWRST_MASK;
@@ -81,25 +87,23 @@ void spim_pdca_init(struct spim_pdca_cfg_t *cfg, uint32_t speed_hz) {
                       AVR32_SPI_CSR3_NCPHA_MASK;
     /* Clear SR */
     cfg->spim->cr = AVR32_SPI_CR_SPIDIS_MASK;
-
-    cpu_irq_restore(flags);
 }
 
 void spim_pdca_transact(struct spim_pdca_cfg_t *cfg,
 struct spim_transaction_t *txn) {
     fcs_assert(cfg);
+    fcs_assert(cfg->spim && (cfg->spim == &AVR32_SPI0 ||
+                             cfg->spim == &AVR32_SPI1));
+    fcs_assert(cfg->rx_pdca_num < AVR32_PDCA_CHANNEL_LENGTH &&
+               cfg->tx_pdca_num < AVR32_PDCA_CHANNEL_LENGTH);
     fcs_assert(txn);
 
     /* AVR32 datasheet, 27.8.5.1 */
     /* 1. Initialize PDCA */
-    fcs_assert(cfg->tx_pdca_num < AVR32_PDCA_CHANNEL_LENGTH);
-    fcs_assert(cfg->rx_pdca_num < AVR32_PDCA_CHANNEL_LENGTH);
     volatile avr32_pdca_channel_t *tx_pdca =
         &AVR32_PDCA.channel[cfg->tx_pdca_num];
     volatile avr32_pdca_channel_t *rx_pdca =
         &AVR32_PDCA.channel[cfg->rx_pdca_num];
-
-    irqflags_t flags = cpu_irq_save();
 
     /* Reset the SPIM FIFO */
     cfg->spim->idr = 0xffffffffu;
@@ -122,28 +126,25 @@ struct spim_transaction_t *txn) {
                       AVR32_SPI_CSR3_NCPHA_MASK | AVR32_SPI_CSR3_CSAAT_MASK;
 	cfg->spim->cr = AVR32_SPI_CR_SPIEN_MASK;
 
-	//cfg->spim->tdr = txn->tx_buf[0];
-
     /* Configure TX and RX PDCAs */
-    spim_pdca_enable(rx_pdca, txn->rx_buf, txn->txn_len, cfg->rx_pid);
-    rx_pdca->cr = AVR32_PDCA_TEN_MASK;
-
     if (txn->txn_len > 0u) {
+        spim_pdca_enable(rx_pdca, txn->rx_buf, txn->txn_len, cfg->rx_pid);
+        rx_pdca->cr = AVR32_PDCA_TEN_MASK;
+
         spim_pdca_enable(tx_pdca, &txn->tx_buf[0], txn->txn_len - 0u,
                          cfg->tx_pid);
         tx_pdca->cr = AVR32_PDCA_TEN_MASK;
     }
-
-	//cfg->spim->cr = AVR32_SPI_CR_SPIEN_MASK;
-
-    cpu_irq_restore(flags);
 }
 
 enum spim_transaction_result_t spim_run_sequence(struct spim_pdca_cfg_t *cfg,
 struct spim_transaction_t seq[], uint32_t idx) {
     fcs_assert(cfg);
-    fcs_assert(cfg->spim);
-    fcs_assert(seq);
+    fcs_assert(cfg->spim && (cfg->spim == &AVR32_SPI0 ||
+                             cfg->spim == &AVR32_SPI1));
+    fcs_assert(cfg->rx_pdca_num < AVR32_PDCA_CHANNEL_LENGTH &&
+               cfg->tx_pdca_num < AVR32_PDCA_CHANNEL_LENGTH);
+    fcs_assert(seq && idx < 10u);
 
     enum spim_transaction_result_t result = SPIM_TRANSACTION_NOTREADY;
 

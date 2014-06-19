@@ -60,13 +60,7 @@
 #include <gpio.h>
 #include <board.h>
 #include <interrupt.h>
-#include <power_clocks_lib.h>
-#include <sleep.h>
-#include <scif_uc3c.h>
-#include <sleepmgr.h>
 #include <sysclk.h>
 #include <usart.h>
-#include <flashc.h>
-#include <wdt/wdt.h>
 
 #endif

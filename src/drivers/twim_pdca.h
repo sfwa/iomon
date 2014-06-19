@@ -55,7 +55,7 @@ struct twim_transaction_t {
     uint8_t tx_len;
     uint8_t tx_buf[4];
     uint8_t rx_len;
-    void *rx_buf;
+    volatile void *rx_buf;
     enum twim_transaction_status_t txn_status;
 };
 

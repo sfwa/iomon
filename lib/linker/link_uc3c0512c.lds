@@ -85,7 +85,7 @@ SECTIONS
   __heap_size__ = DEFINED(__heap_size__) ? __heap_size__ : __max_heap_size__;
 
   /* Use a default stack size if stack size was not defined. */
-  __stack_size__ = DEFINED(__stack_size__) ? __stack_size__ : 4K;
+  __stack_size__ = DEFINED(__stack_size__) ? __stack_size__ : 8K;
 
   /* Read-only sections, merged into text segment: */
   PROVIDE (__executable_start = 0x80000000); . = 0x80000000;

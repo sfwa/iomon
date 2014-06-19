@@ -62,25 +62,6 @@ static uint32_t accel_count, baro_count, mag_count, gps_count, pitot_count;
 
 static uint16_t cpu_reset_countdown_tick;
 
-static enum fcs_parameter_type_t telemetry_feed_params[] = {
-    FCS_PARAMETER_ESTIMATED_POSITION_LLA,
-    FCS_PARAMETER_ESTIMATED_VELOCITY_NED,
-    FCS_PARAMETER_ESTIMATED_ATTITUDE_Q,
-    FCS_PARAMETER_ESTIMATED_WIND_VELOCITY_NED,
-    FCS_PARAMETER_ESTIMATED_POSITION_SD,
-    FCS_PARAMETER_ESTIMATED_VELOCITY_SD,
-    FCS_PARAMETER_ESTIMATED_ATTITUDE_SD,
-    FCS_PARAMETER_ESTIMATED_WIND_VELOCITY_SD,
-    FCS_PARAMETER_AHRS_MODE,
-    FCS_PARAMETER_GP_IN,
-    FCS_PARAMETER_CONTROL_STATUS,
-    FCS_PARAMETER_AHRS_STATUS,
-    FCS_PARAMETER_NAV_VERSION,
-    FCS_PARAMETER_NAV_PATH_ID,
-    FCS_PARAMETER_KEY_VALUE, /* should only be one of these per frame */
-    FCS_PARAMETER_LAST  /* terminator */
-};
-
 static enum fcs_parameter_type_t cpu_feed_params[] = {
     FCS_PARAMETER_DERIVED_REFERENCE_PRESSURE,
     FCS_PARAMETER_DERIVED_REFERENCE_ALT,
@@ -155,16 +136,19 @@ static inline size_t _extract_length(uint8_t header) {
         length = 3u + num_values * ((precision_bits + 7u) >> 3u);
     }
 
+    fcs_assert(length < sizeof(struct fcs_parameter_t));
+
     return length;
 }
 
-
 void comms_set_cpu_status(uint32_t cycles_used) {
     fcs_assert(cycles_used < 1000000);
+    fcs_assert(cpu_conn.out_log.length >= 5 &&
+               cpu_conn.out_log.length < 1024);
 
 	static uint32_t max_proportion_used = 0;
 	struct fcs_parameter_t param;
-    uint32_t cycles_per_tick = sysclk_get_cpu_hz() / 1000,
+    uint32_t cycles_per_tick = CONFIG_MAIN_HZ / 1000,
              proportion_used = (255u * cycles_used) / cycles_per_tick;
     if (proportion_used > max_proportion_used) {
         max_proportion_used = proportion_used;
@@ -181,35 +165,29 @@ void comms_set_cpu_status(uint32_t cycles_used) {
 }
 
 void comms_init(void) {
+    static usart_options_t usart_options;
+    uint32_t result;
+
     /* Set up serial comms + CPU board interface */
     gpio_enable_module_pin(CPU_USART_RXD_PIN, CPU_USART_RXD_FUNCTION);
     gpio_enable_module_pin(CPU_USART_TXD_PIN, CPU_USART_TXD_FUNCTION);
-    sysclk_enable_pba_module(CPU_USART_SYSCLK);
 
     /* Configure AUX USART interfaces */
     gpio_enable_module_pin(AUX_USART_RXD_PIN, AUX_USART_RXD_FUNCTION);
     gpio_enable_module_pin(AUX_USART_TXD_PIN, AUX_USART_TXD_FUNCTION);
-    sysclk_enable_pba_module(AUX_USART_SYSCLK);
 
     /* Configure CPU board reset output */
     gpio_configure_pin(CPU_RESET_PIN, GPIO_DIR_OUTPUT | GPIO_INIT_LOW);
 
-
-    memset(&cpu_conn, 0, sizeof(cpu_conn));
-    memset(&gcs_conn, 0, sizeof(gcs_conn));
-
     cpu_reset_countdown_tick = CPU_STARTUP_TICKS;
 
     /* Configure CPU USART */
-    static usart_options_t usart_options;
     usart_options.baudrate = 2604166u;
     usart_options.charlength = 8u;
     usart_options.paritytype = USART_NO_PARITY;
     usart_options.stopbits = USART_1_STOPBIT;
     usart_options.channelmode = USART_NORMAL_CHMODE;
-    CPU_USART->idr = 0xFFFFFFFFu;
-    uint32_t result = usart_init_rs232(CPU_USART, &usart_options,
-        sysclk_get_pba_hz());
+    result = usart_init_rs232(CPU_USART, &usart_options, CONFIG_MAIN_HZ);
     fcs_assert(result == USART_SUCCESS);
 
     /* Configure AUX USART */
@@ -218,9 +196,7 @@ void comms_init(void) {
     usart_options.paritytype = USART_NO_PARITY;
     usart_options.stopbits = USART_1_STOPBIT;
     usart_options.channelmode = USART_NORMAL_CHMODE;
-    AUX_USART->idr = 0xFFFFFFFFu;
-    result = usart_init_rs232(AUX_USART, &usart_options,
-        sysclk_get_pba_hz());
+    result = usart_init_rs232(AUX_USART, &usart_options, CONFIG_MAIN_HZ);
     fcs_assert(result == USART_SUCCESS);
 
 	fcs_log_init(&cpu_conn.out_log, FCS_LOG_TYPE_MEASUREMENT, 0);
@@ -237,13 +213,18 @@ void comms_tick(void) {
 
     static uint8_t sensors_updated = 0;
 
-    for (i = 5u; i < cpu_conn.out_log.length; ) {
+    fcs_assert(FCS_LOG_MIN_LENGTH <= cpu_conn.out_log.length &&
+               cpu_conn.out_log.length <= FCS_LOG_MAX_LENGTH);
+
+    for (i = 5u; i < cpu_conn.out_log.length - 3u; ) {
         param_len = _extract_length(cpu_conn.out_log.data[i]);
-        if (!param_len) {
+        param_type = (enum fcs_parameter_type_t)cpu_conn.out_log.data[i + 2u];
+        if (param_type == FCS_PARAMETER_INVALID || !param_len ||
+                param_len > sizeof(struct fcs_parameter_t) ||
+                i + param_len > gcs_conn.in_log.length) {
             break;
         }
 
-        param_type = (enum fcs_parameter_type_t)cpu_conn.out_log.data[i + 2u];
         if (param_type == FCS_PARAMETER_ACCELEROMETER_XYZ) {
             sensors_updated |= UPDATED_ACCEL;
             accel_count++;
@@ -287,40 +268,23 @@ void comms_tick(void) {
     Also add the latest reference pressure and altitude from the telemetry log
     to the measurement log.
     */
-    for (i = 5u; i < gcs_conn.in_log.length; ) {
+    fcs_assert(FCS_LOG_MIN_LENGTH <= gcs_conn.out_log.length &&
+               gcs_conn.out_log.length <= FCS_LOG_MAX_LENGTH);
+
+    for (i = 5u; i < gcs_conn.in_log.length - 3u; ) {
         param_len = _extract_length(gcs_conn.in_log.data[i]);
-        if (!param_len) {
+        param_type = (enum fcs_parameter_type_t)cpu_conn.out_log.data[i + 2u];
+        if (param_type == FCS_PARAMETER_INVALID || !param_len ||
+                param_len > sizeof(struct fcs_parameter_t) ||
+                i + param_len > gcs_conn.in_log.length) {
             break;
         }
 
-        param_type = (enum fcs_parameter_type_t)gcs_conn.in_log.data[i + 2u];
         for (j = 0; j < 100u && cpu_feed_params[j] != FCS_PARAMETER_LAST;
                 j++) {
             if (cpu_feed_params[j] == param_type) {
                 memcpy(&param, &gcs_conn.in_log.data[i], param_len);
-                fcs_log_add_parameter(&cpu_conn.out_log, &param);
-            }
-        }
-
-		i += param_len;
-    }
-
-    /* Prepare the telemetry packet for transfer over the telemetry UART */
-    fcs_log_init(&gcs_conn.out_log, FCS_LOG_TYPE_COMBINED,
-                 cpu_conn.last_tx_packet_tick);
-    /* Add relevant fields from the CPU log */
-    for (i = 5u; i < cpu_conn.in_log.length; ) {
-        param_len = _extract_length(cpu_conn.in_log.data[i]);
-        if (!param_len) {
-            break;
-        }
-
-        param_type = (enum fcs_parameter_type_t)cpu_conn.in_log.data[i + 2u];
-        for (j = 0; j < 100u && cpu_feed_params[j] != FCS_PARAMETER_LAST;
-                j++) {
-            if (telemetry_feed_params[j] == param_type) {
-                memcpy(&param, &cpu_conn.in_log.data[i], param_len);
-                fcs_log_add_parameter(&gcs_conn.out_log, &param);
+                (void)fcs_log_add_parameter(&cpu_conn.out_log, &param);
             }
         }
 
@@ -328,7 +292,7 @@ void comms_tick(void) {
     }
 
     packet_len = fcs_log_serialize(gcs_conn.tx_buf, TX_BUF_LEN,
-	                               &gcs_conn.out_log);
+	                               &cpu_conn.in_log);
 
     /* Only send the telemetry packet every TELEMETRY_INTERVAL ticks */
 	pdca_channel = &AVR32_PDCA.channel[PDCA_CHANNEL_AUX_TX];
@@ -336,9 +300,13 @@ void comms_tick(void) {
 			cpu_conn.last_tx_packet_tick % TELEMETRY_INTERVAL == 0) {
 		pdca_channel->cr = AVR32_PDCA_TDIS_MASK;
 
+        /* Validate the last data buffer */
+        fcs_assert(memcmp(gcs_conn.tx_buf, gcs_tx_dma_buf, TX_BUF_LEN) == 0);
+
 		memcpy(gcs_tx_dma_buf, gcs_conn.tx_buf, TX_BUF_LEN);
 
-        irqflags_t flags = cpu_irq_save();
+        pdca_channel->idr = 0xFFFFFFFFu;
+        pdca_channel->isr;
         pdca_channel->mar = (uint32_t)gcs_tx_dma_buf;
         pdca_channel->tcr = packet_len;
         pdca_channel->marr = 0;
@@ -346,17 +314,20 @@ void comms_tick(void) {
         pdca_channel->psr = AUX_USART_PDCA_PID_TX;
         pdca_channel->mr = AVR32_PDCA_BYTE << AVR32_PDCA_SIZE_OFFSET;
         pdca_channel->cr = AVR32_PDCA_ECLR_MASK | AVR32_PDCA_TEN_MASK;
-        pdca_channel->isr;
-        cpu_irq_restore(flags);
     }
 
-    /* Schedule the measurement log transfer over the CPU UART */
-    packet_len = fcs_log_serialize(cpu_conn.tx_buf, TX_BUF_LEN,
-                                   &cpu_conn.out_log);
+    /* Validate the last data buffer */
+    fcs_assert(memcmp(cpu_conn.tx_buf, cpu_tx_dma_buf, 192) == 0);
 
-    fcs_assert(packet_len < 192u);
-    memmove(&cpu_conn.tx_buf[192u - packet_len], cpu_conn.tx_buf, packet_len);
-    memset(cpu_conn.tx_buf, 0, 192u - packet_len);
+    /* Schedule the measurement log transfer over the CPU UART */
+    packet_len = fcs_log_serialize(cpu_conn.tx_buf, 192u, &cpu_conn.out_log);
+
+    for (i = 0; i < packet_len; i++) {
+        cpu_conn.tx_buf[191u - i] = cpu_conn.tx_buf[packet_len - i - 1u];
+    }
+    for (; i < 192u; i++) {
+        cpu_conn.tx_buf[191u - i] = 0;
+    }
 
     /*
     Transmission is start by calling comms_start_transmit(); that's done at a
@@ -364,19 +335,17 @@ void comms_tick(void) {
     */
 
     cpu_conn.last_tx_packet_tick++;
-    fcs_log_init(&cpu_conn.out_log, FCS_LOG_TYPE_MEASUREMENT,
+    fcs_log_init(&(cpu_conn.out_log), FCS_LOG_TYPE_MEASUREMENT,
                  cpu_conn.last_tx_packet_tick);
 
     /* Set the CPU reset line if the last received packet was more than 10ms
        ago */
     if (cpu_reset_countdown_tick == 0 &&
-            cpu_conn.last_tx_packet_tick - cpu_conn.last_rx_packet_tick >
+            (uint32_t)cpu_conn.last_tx_packet_tick -
+			(uint32_t)cpu_conn.last_rx_packet_tick >
             CPU_TIMEOUT_TICKS) {
         cpu_reset_countdown_tick = CPU_RESET_TICKS;
         gpio_local_set_gpio_pin(CPU_RESET_PIN);
-
-        /* Enter flight termination */
-        pwm_terminate_flight();
     } else if (cpu_reset_countdown_tick == 1u) {
         cpu_reset_countdown_tick = 0;
         cpu_conn.last_rx_packet_tick = cpu_conn.last_tx_packet_tick;
@@ -390,6 +359,7 @@ void comms_tick(void) {
 
 void comms_start_transmit(void) {
 	volatile avr32_pdca_channel_t *pdca_channel;
+    size_t i;
 
     pdca_channel = &AVR32_PDCA.channel[PDCA_CHANNEL_CPU_TX];
 
@@ -399,10 +369,13 @@ void comms_start_transmit(void) {
     }
 
     pdca_channel->cr = AVR32_PDCA_TDIS_MASK;
+    pdca_channel->idr = 0xFFFFFFFFu;
+    pdca_channel->isr;
 
-    memcpy(cpu_tx_dma_buf, cpu_conn.tx_buf, TX_BUF_LEN);
+    for (i = 0; i < 192u; i++) {
+        cpu_tx_dma_buf[i] = cpu_conn.tx_buf[i];
+    }
 
-    irqflags_t flags = cpu_irq_save();
     pdca_channel->mar = (uint32_t)cpu_tx_dma_buf;
     pdca_channel->tcr = 192u;
     pdca_channel->marr = 0;
@@ -410,13 +383,10 @@ void comms_start_transmit(void) {
     pdca_channel->psr = CPU_USART_PDCA_PID_TX;
     pdca_channel->mr = AVR32_PDCA_BYTE << AVR32_PDCA_SIZE_OFFSET;
     pdca_channel->cr = AVR32_PDCA_ECLR_MASK | AVR32_PDCA_TEN_MASK;
-    pdca_channel->isr;
-    cpu_irq_restore(flags);
 }
 
 static void comms_process_conn_rx(struct connection_t *conn,
 uint32_t channel_id) {
-    irqflags_t flags;
     size_t bytes_read, bytes_avail;
     bool result;
     volatile avr32_pdca_channel_t *pdca_channel;
@@ -449,8 +419,10 @@ uint32_t channel_id) {
         bytes_avail = 0;
         conn->rx_buf_idx = 0;
 
-        flags = cpu_irq_save();
         pdca_channel->cr = AVR32_PDCA_TDIS_MASK;
+        pdca_channel->idr = 0xFFFFFFFFu;
+        pdca_channel->isr;
+
         pdca_channel->mar = (uint32_t)conn->rx_buf;
         pdca_channel->tcr = RX_BUF_LEN;
         pdca_channel->marr = (uint32_t)conn->rx_buf;
@@ -459,8 +431,6 @@ uint32_t channel_id) {
         pdca_channel->mr = (AVR32_PDCA_BYTE << AVR32_PDCA_SIZE_OFFSET)
             | (1 << AVR32_PDCA_RING_OFFSET);
         pdca_channel->cr = AVR32_PDCA_ECLR_MASK | AVR32_PDCA_TEN_MASK;
-        pdca_channel->isr;
-        cpu_irq_restore(flags);
     }
 
     if (bytes_avail) {
@@ -477,7 +447,7 @@ uint32_t bytes_avail) {
 
     bool result = false, got_message = false, did_get_message = false,
          did_get_error = false;
-    uint8_t ch, buf[15];
+    uint8_t ch, buf[32];
     struct cobsr_decode_result decode_result;
     struct fcs_parameter_t param;
 
@@ -542,7 +512,7 @@ uint32_t bytes_avail) {
                 result = fcs_log_deserialize(&conn->in_log, conn->rx_msg,
                                              conn->rx_msg_idx);
                 if (!result) {
-                    fcs_log_init(&conn->in_log, FCS_LOG_TYPE_COMBINED, 0);
+                    fcs_log_init(&(conn->in_log), FCS_LOG_TYPE_COMBINED, 0);
 					conn->rx_errors++;
                     did_get_error = true;
                 } else {

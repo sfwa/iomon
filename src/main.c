@@ -32,32 +32,27 @@ SOFTWARE.
 #include "peripherals/mpu6000.h"
 #include "peripherals/ms4525.h"
 
+static void sysclk_init(void) {
+    pll_enable_config_defaults(0);
+    /* Set a flash wait state depending on the new cpu frequency. */
+    if (CONFIG_MAIN_HZ > 33000000) {
+        AVR32_FLASHC.FCR.fws =  1;
+    }
+
+    cpu_irq_disable();
+    AVR32_PM.unlock = 0xaa000000 | AVR32_PM_MCCTRL;
+    AVR32_PM.mcctrl = CONFIG_SYSCLK_SOURCE;
+    while (!(AVR32_PM.SR.ckrdy));
+    cpu_irq_enable();
+}
+
 int main(void) {
 	/* Initialize core systems */
     sysclk_init();
-	sleepmgr_init();
-
-    irq_initialize_vectors();
-    cpu_irq_disable();
-
-    /* Initialize the WDT as early as possible; initially set timeout to 100ms */
-    wdt_opt_t wdt_options = {
-        .us_timeout_period = 100000u, /* us */
-        .us_timeban_period = 0,
-        .cssel = WDT_CLOCK_SOURCE_SELECT_RCSYS,
-        .fcd = 1u, /* don't re-calibrate on watchdog reset */
-        .sfv = 0, /* if set to 1, the WDT is locked out completely */
-        .mode = 0, /* no timeban */
-        .dar = 1u /* disable WDT on reset, to prevent runaway reset loops */
-    };
-#ifdef CONTINUE_ON_ASSERT
-    wdt_enable(&wdt_options);
-#endif
+	gpio_local_init();
 
     /* Initialize the core iomon systems */
     comms_init();
-
-    wdt_clear();
 
     /* Initialize peripheral devices */
     gp_init();
@@ -77,25 +72,10 @@ int main(void) {
     LED_OFF(LED0_GPIO);
     LED_OFF(LED3_GPIO);
 
-    wdt_clear();
-
-    wdt_options.us_timeout_period = 5000u;
-    wdt_options.sfv = 1u; /* don't allow any further changes */
-#ifdef CONTINUE_ON_ASSERT
-    wdt_disable();
-    wdt_clear();
-    wdt_enable(&wdt_options);
-#endif
-
-    cpu_irq_enable();
-
     uint32_t counts_per_ms, frame;
-    counts_per_ms = sysclk_get_cpu_hz() / 1000u;
+    counts_per_ms = CONFIG_MAIN_HZ / 1000u;
     frame = Get_system_register(AVR32_COUNT) / counts_per_ms;
     while (true) {
-        /* Clear the watchdog timer */
-        wdt_clear();
-
         /* Input/output procedure */
         gp_tick();
 

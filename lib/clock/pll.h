@@ -242,7 +242,7 @@ static inline void pll_enable_config_defaults(unsigned int pll_id)
 	struct pll_config pllcfg;
 
 	if (pll_is_locked(pll_id)) {
-		return; /* Pll already running */
+		pll_disable(pll_id); /* Pll already running */
 	}
 	switch (pll_id) {
 #ifdef CONFIG_PLL0_SOURCE

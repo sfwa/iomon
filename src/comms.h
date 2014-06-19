@@ -48,7 +48,7 @@ struct connection_t {
 
     uint8_t tx_buf[TX_BUF_LEN];
 
-    uint8_t rx_buf[RX_BUF_LEN];
+    volatile uint8_t rx_buf[RX_BUF_LEN];
     uint16_t rx_buf_idx;
 
     uint8_t rx_msg[FCS_LOG_SERIALIZED_LENGTH];

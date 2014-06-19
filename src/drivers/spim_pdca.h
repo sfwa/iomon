@@ -53,7 +53,7 @@ enum spim_transaction_status_t {
 struct spim_transaction_t {
     uint8_t txn_len;
     uint8_t tx_buf[16];
-    uint8_t rx_buf[16];
+    volatile uint8_t rx_buf[16];
     enum spim_transaction_status_t txn_status;
 };
 

@@ -31,18 +31,19 @@ SOFTWARE.
 #include "crc32.h"
 
 /* Initialize a log packet with a type and packet index */
-void fcs_log_init(struct fcs_log_t *restrict plog, enum fcs_log_type_t type,
+void fcs_log_init(struct fcs_log_t *plog, enum fcs_log_type_t type,
 uint16_t frame_id) {
     fcs_assert(plog);
+    fcs_assert(((uint32_t)plog & 0x3) == 0);
     fcs_assert(type > FCS_LOG_TYPE_INVALID);
     fcs_assert(type < FCS_LOG_TYPE_LAST);
 
+    plog->length = FCS_LOG_MIN_LENGTH;
     plog->data[0] = (uint8_t)type;
     plog->data[1] = 0;
     plog->data[2] = 0;
     plog->data[3] = (frame_id >> 0u) & 0xFFu;
     plog->data[4] = (frame_id >> 8u) & 0xFFu;
-    plog->length = FCS_LOG_MIN_LENGTH;
 }
 
 /*
@@ -56,6 +57,7 @@ struct fcs_log_t *plog) {
     fcs_assert(out_buf);
     fcs_assert(out_buf_length);
     fcs_assert(plog);
+    fcs_assert(((uint32_t)plog & 0x3) == 0);
     fcs_assert(FCS_LOG_MIN_LENGTH <= plog->length &&
                plog->length <= FCS_LOG_MAX_LENGTH);
     fcs_assert(plog->data[0] > (uint8_t)FCS_LOG_TYPE_INVALID);
@@ -90,9 +92,10 @@ struct fcs_log_t *plog) {
 }
 
 /* Deserialize a log frame */
-bool fcs_log_deserialize(
-struct fcs_log_t *plog, const uint8_t *restrict in_buf, size_t in_buf_len) {
+bool fcs_log_deserialize(struct fcs_log_t *plog, const uint8_t *in_buf,
+size_t in_buf_len) {
     fcs_assert(plog);
+    fcs_assert(((uint32_t)plog & 0x3) == 0);
     fcs_assert(in_buf);
     fcs_assert(in_buf_len);
 
@@ -127,11 +130,11 @@ struct fcs_log_t *plog, const uint8_t *restrict in_buf, size_t in_buf_len) {
 
 invalid:
     /*
-    Since the log is invalid, set all data to values which will cause an
+    Since the log is invalid, set the length to a value which will cause an
     assertion failure as quickly as possible if the caller doesn't check our
     return value;
     */
-    memset(plog, 0xFF, sizeof(struct fcs_log_t));
+    plog->length = 0xFFFFFFFFu;
     return false;
 }
 
@@ -140,12 +143,13 @@ Merge the logs `src` and `dst`, with the result stored in `dst`.
 
 If `dst` has insufficient space available, return `false`, otherwise `true`.
 */
-bool fcs_log_merge(struct fcs_log_t *restrict dst,
-const struct fcs_log_t *restrict src) {
+bool fcs_log_merge(struct fcs_log_t *dst, const struct fcs_log_t *src) {
     fcs_assert(dst);
+    fcs_assert(((uint32_t)dst & 0x3) == 0);
     fcs_assert(FCS_LOG_MIN_LENGTH <= dst->length &&
                dst->length <= FCS_LOG_MAX_LENGTH);
     fcs_assert(src);
+    fcs_assert(((uint32_t)src & 0x3) == 0);
     fcs_assert(FCS_LOG_MIN_LENGTH <= src->length &&
                src->length <= FCS_LOG_MAX_LENGTH);
     fcs_assert(dst->data[0] > (uint8_t)FCS_LOG_TYPE_INVALID);

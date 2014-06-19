@@ -28,8 +28,8 @@ SOFTWARE.
 typedef uint16_t float16_t;
 
 #define FCS_LOG_MIN_LENGTH 5u
-#define FCS_LOG_MAX_LENGTH 1013u
-#define FCS_LOG_SERIALIZED_LENGTH 1024u
+#define FCS_LOG_MAX_LENGTH 248u
+#define FCS_LOG_SERIALIZED_LENGTH 256u
 
 enum fcs_log_type_t {
     FCS_LOG_TYPE_INVALID,
@@ -50,12 +50,12 @@ Binary log packet (all multi-byte values are LE):
 4 bytes CRC32
 */
 struct fcs_log_t {
-    uint8_t data[FCS_LOG_MAX_LENGTH + 4u];
     size_t length;  /* excludes the size of the CRC32 (4 bytes) */
+    uint8_t data[FCS_LOG_MAX_LENGTH + 4u];
 };
 
 /* Initialize a log packet with a type and packet index */
-void fcs_log_init(struct fcs_log_t *restrict plog, enum fcs_log_type_t type,
+void fcs_log_init(struct fcs_log_t *plog, enum fcs_log_type_t type,
 uint16_t frame_id);
 
 /*
@@ -64,19 +64,18 @@ Serialize and add COBS-R + framing to log packet, and copy the result to
 
 Modifies `log` to include a CRC32.
 */
-size_t fcs_log_serialize(uint8_t *restrict out_buf, size_t out_buf_len,
+size_t fcs_log_serialize(uint8_t *out_buf, size_t out_buf_len,
 struct fcs_log_t *plog);
 
 /* Deserialize a log frame */
-bool fcs_log_deserialize(struct fcs_log_t *plog,
-const uint8_t *restrict in_buf, size_t in_buf_len);
+bool fcs_log_deserialize(struct fcs_log_t *plog, const uint8_t *in_buf,
+size_t in_buf_len);
 
 /*
 Merge the logs `src` and `dst`, with the result stored in `dst`.
 
 If `dst` has insufficient space available, return `false`, otherwise `true`.
 */
-bool fcs_log_merge(struct fcs_log_t *restrict dst,
-const struct fcs_log_t *restrict src);
+bool fcs_log_merge(struct fcs_log_t *dst, const struct fcs_log_t *src);
 
 #endif

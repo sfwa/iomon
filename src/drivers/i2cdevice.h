@@ -25,16 +25,6 @@ SOFTWARE.
 
 #include "twim_pdca.h"
 
-/*
-Separate I2C assert function -- if there's an assertion failure, hang forever
-unless CONTINUE_ON_ASSERT is defined, in which case the MCU should be reset.
-*/
-#ifndef CONTINUE_ON_ASSERT
-#define I2CAssert(x) Assert(x)
-#else
-#define I2CAssert(x) if (!(x)) { wdt_reset_mcu(); }
-#endif
-
 enum i2c_state_t {
     I2C_POWERING_UP = 0,
     I2C_INIT_SEQUENCE,
@@ -72,7 +62,7 @@ struct i2c_device_t {
 
 static inline void i2c_device_state_transition(struct i2c_device_t *dev,
         enum i2c_state_t new_state) {
-    I2CAssert(I2C_POWERING_UP <= new_state && new_state <= I2C_POWERING_DOWN);
+    fcs_assert(new_state <= I2C_POWERING_DOWN);
 
     dev->state = new_state;
     dev->state_timer = 0;

@@ -43,19 +43,19 @@ static struct spim_transaction_t init_sequence[] = {
 
     /* Write 0x15 to USER_CTRL -- disables I2C interface and resets FIFO and
        signal path. */
-    {2u, {0x6au, 0x15u}, {0, 0}},
+    {2u, {0x6au, 0x15u}, {0, 0}, 0},
     /* Write 0x02 to RA_PWR_MGMT_1 -- sets clock source to gyro w/ PLL */
-    {2u, {0x6bu, 0x02u}, {0, 0}},
+    {2u, {0x6bu, 0x02u}, {0, 0}, 0},
     /* Write 0x00 to RA_SMPLRT_DIV -- 8000/(1+0) = 8kHz */
-    {2u, {0x19u, 0x00u}, {0, 0}},
+    {2u, {0x19u, 0x00u}, {0, 0}, 0},
     /* Write 0x00 to RA_CONFIG -- disable FSync, no/256Hz low-pass */
-    {2u, {0x1au, 0x00u}, {0, 0}},
+    {2u, {0x1au, 0x00u}, {0, 0}, 0},
     /* Write 0x08 to RA_GYRO_CONFIG -- no self test, scale 500deg/s */
-    {2u, {0x1bu, 0x08u}, {0, 0}},
+    {2u, {0x1bu, 0x08u}, {0, 0}, 0},
     /* Write 0x10 to RA_ACCEL_CONFIG -- no self test, scale of +-8g, no HPF */
-    {2u, {0x1cu, 0x10u}, {0, 0}},
+    {2u, {0x1cu, 0x10u}, {0, 0}, 0},
     /* Write 0x00 to RA_SIGNAL_PATH_RESET -- reset sensor signal paths */
-    {2u, {0x68u, 0x00u}, {0, 0}},
+    {2u, {0x68u, 0x00u}, {0, 0}, 0},
     SPIM_TRANSACTION_SENTINEL
 };
 
@@ -64,7 +64,7 @@ static struct spim_transaction_t read_sequence[] = {
        AX.H, AX.L, AY.H, AY.L, AZ.H, AZ.L,
        TEMP.H, TEMP.L,
        GX.H, GX.L, GY.H, GY.L, GZ.H, GZ.L */
-    {15u, {0x3bu | 0x80, 0}, {0}},
+    {15u, {0x3bu | 0x80, 0}, {0}, 0},
     SPIM_TRANSACTION_SENTINEL
 };
 
@@ -115,7 +115,13 @@ void mpu6000_tick(void) {
         Accel XYZ is in data[0:3], temp is in data [3], and gyro XYZ is in
         data[4:7] (Python slice notation).
         */
-        memcpy(data, &read_sequence[0].rx_buf[1], sizeof(data));
+        data[0] = read_sequence[0].rx_buf[1];
+		data[1] = read_sequence[0].rx_buf[2];
+		data[2] = read_sequence[0].rx_buf[3];
+		data[3] = read_sequence[0].rx_buf[4];
+		data[4] = read_sequence[0].rx_buf[5];
+		data[5] = read_sequence[0].rx_buf[6];
+		data[6] = read_sequence[0].rx_buf[7];
 
         fcs_parameter_set_header(&param, FCS_VALUE_SIGNED, 16u, 3u);
         fcs_parameter_set_type(&param, FCS_PARAMETER_ACCELEROMETER_XYZ);

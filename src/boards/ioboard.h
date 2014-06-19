@@ -25,6 +25,15 @@ SOFTWARE.
 
 #include "compiler.h"
 
+/* \name System clock source */
+#define SYSCLK_SRC_RCSYS        0       /* System RC oscillator */
+#define SYSCLK_SRC_OSC0         1       /* Oscillator 0 */
+#define SYSCLK_SRC_OSC1         2       /* Oscillator 1 */
+#define SYSCLK_SRC_PLL0         3       /* Phase Locked Loop 0 */
+#define SYSCLK_SRC_PLL1         4       /* Phase Locked Loop 1 */
+#define SYSCLK_SRC_RC8M         5       /* 8 MHz RC oscillator */
+#define SYSCLK_SRC_RC120M       7       /* 120 MHz RC oscillator */
+
 /* 12MHz oscillator connected to XIN0 */
 #define BOARD_OSC0_HZ                  12000000u
 #define BOARD_OSC0_STARTUP_US          10000u
@@ -40,6 +49,10 @@ SOFTWARE.
    All we need to do is multiply by 13/3. */
 #define CONFIG_PLL0_MUL                13u
 #define CONFIG_PLL0_DIV                3u
+
+
+#define CONFIG_MAIN_HZ                 ((uint32_t)(BOARD_OSC0_HZ * \
+                                        CONFIG_PLL0_MUL / CONFIG_PLL0_DIV))
 
 /* UC3C1512 - TQFP100 / IOBOARD      / Software function pin assignments
  *

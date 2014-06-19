@@ -215,12 +215,16 @@ void sysclk_set_prescalers(unsigned int cpu_shift,
 	flags = cpu_irq_save();
 	AVR32_PM.unlock = 0xaa000000 | AVR32_PM_CPUSEL;
 	AVR32_PM.cpusel = cpu_cksel;
+	while (!(AVR32_PM.SR.ckrdy));
 	AVR32_PM.unlock = 0xaa000000 | AVR32_PM_PBASEL;
 	AVR32_PM.pbasel = pba_cksel;
+	while (!(AVR32_PM.SR.ckrdy));
 	AVR32_PM.unlock = 0xaa000000 | AVR32_PM_PBBSEL;
 	AVR32_PM.pbbsel = pbb_cksel;
+	while (!(AVR32_PM.SR.ckrdy));
 	AVR32_PM.unlock = 0xaa000000 | AVR32_PM_PBCSEL;
 	AVR32_PM.pbcsel = pbc_cksel;
+	while (!(AVR32_PM.SR.ckrdy));
 	cpu_irq_restore(flags);
 }
 
@@ -239,30 +243,9 @@ void sysclk_set_source(uint_fast8_t src)
 	flags = cpu_irq_save();
 	AVR32_PM.unlock = 0xaa000000 | AVR32_PM_MCCTRL;
 	AVR32_PM.mcctrl = src;
+	while (!(AVR32_PM.SR.ckrdy));
 	cpu_irq_restore(flags);
 }
-
-#if defined(CONFIG_USBCLK_SOURCE) || defined(__DOXYGEN__)
-/**
- * \brief Enable the USB generic clock
- *
- * \pre The USB generic clock must be configured to 48MHz.
- * CONFIG_USBCLK_SOURCE and CONFIG_USBCLK_DIV must be defined with proper
- * configuration. The selected clock source must also be configured.
- */
-void sysclk_enable_usb(void)
-{
-	genclk_enable_config(AVR32_USBC_GCLK_NUM, CONFIG_USBCLK_SOURCE, CONFIG_USBCLK_DIV);
-}
-
-/**
- * \brief Disable the USB generic clock
- */
-void sysclk_disable_usb(void)
-{
-	genclk_disable(AVR32_USBC_GCLK_NUM);
-}
-#endif
 
 void sysclk_init(void)
 {
@@ -339,23 +322,6 @@ void sysclk_init(void)
 		fcs_assert(false);
 		break;
 	}
-
-	/* If the user has specified clock masks, enable only requested clocks */
-#if defined(CONFIG_SYSCLK_INIT_CPUMASK)
-	AVR32_PM.cpumask = SYSCLK_INIT_MINIMAL_CPUMASK | CONFIG_SYSCLK_INIT_CPUMASK;
-#endif
-#if defined(CONFIG_SYSCLK_INIT_PBAMASK)
-	AVR32_PM.pbamask = SYSCLK_INIT_MINIMAL_PBAMASK | CONFIG_SYSCLK_INIT_PBAMASK;
-#endif
-#if defined(CONFIG_SYSCLK_INIT_PBBMASK)
-	AVR32_PM.pbbmask = SYSCLK_INIT_MINIMAL_PBBMASK | CONFIG_SYSCLK_INIT_PBBMASK;
-#endif
-#if defined(CONFIG_SYSCLK_INIT_PBCMASK)
-	AVR32_PM.pbcmask = SYSCLK_INIT_MINIMAL_PBCMASK | CONFIG_SYSCLK_INIT_PBCMASK;
-#endif
-#if defined(CONFIG_SYSCLK_INIT_HSBMASK)
-	AVR32_PM.hsbmask = SYSCLK_INIT_MINIMAL_HSBMASK | CONFIG_SYSCLK_INIT_HSBMASK;
-#endif
 
 #if (defined CONFIG_SYSCLK_DEFAULT_RETURNS_SLOW_OSC)
 	/* Signal that the internal frequencies are setup */

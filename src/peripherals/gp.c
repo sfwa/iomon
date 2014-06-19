@@ -39,14 +39,14 @@ SOFTWARE.
 #define GP_ADC_BATTERY_V 2u
 #define GP_ADC_AUX 3u
 
-static uint32_t gp_input_pins[GP_NUM_INPUTS] =
+static const uint32_t gp_input_pins[GP_NUM_INPUTS] =
     {GPIN_0_PIN, GPIN_1_PIN, GPIN_2_PIN, GPIN_3_PIN};
-static uint32_t gp_output_pins[GP_NUM_OUTPUTS] =
+static const uint32_t gp_output_pins[GP_NUM_OUTPUTS] =
     {GPOUT_0_PIN, GPOUT_1_PIN, GPOUT_2_PIN, GPOUT_3_PIN};
 /* Interleaved samples are stored in this buffer (i.e. 0 1 2 3 0 1 2 3) by
    the PDCA. The gp_adc_last_sample_idx value contains the index of the last
    ADC sample read. */
-static int16_t gp_adc_samples[GP_ADC_BUF_SIZE];
+static int16_t gp_adc_samples[GP_ADC_BUF_SIZE * 2u];
 static uint32_t gp_adc_last_sample_idx;
 
 static void gp_set_pins(uint32_t pin_values);
@@ -54,8 +54,6 @@ static uint32_t gp_get_pins(void);
 
 
 void gp_init(void) {
-    gpio_local_init();
-
     /* Set GPIO pin configuration on outputs */
     for (uint8_t i = 0; i < GP_NUM_OUTPUTS; i++) {
         gpio_configure_pin(gp_output_pins[i], GPIO_DIR_OUTPUT);
@@ -70,7 +68,7 @@ void gp_init(void) {
     gpio_configure_pin(gp_input_pins[2], GPIO_DIR_INPUT | GPIO_PULL_UP);
     gpio_configure_pin(gp_input_pins[3], GPIO_DIR_INPUT | GPIO_PULL_UP);
 
-    //gp_set_pins(0);
+    gp_set_pins(0);
 
     /* Configure the pins connected to LEDs as output and set their default
        initial state to high (LEDs on). */
@@ -79,14 +77,16 @@ void gp_init(void) {
     gpio_configure_pin(LED2_GPIO, GPIO_DIR_OUTPUT | GPIO_INIT_HIGH);
     gpio_configure_pin(LED3_GPIO, GPIO_DIR_OUTPUT | GPIO_INIT_HIGH);
 
+	return;
+
     /* Initialize ADCs */
 
     /* Set GPIOs for channels 0-3 */
+    sysclk_enable_pbc_module(GP_ADC_SYSCLK);
     gpio_enable_module_pin(ADC_PITOT_PIN, ADC_PITOT_FUNCTION);
     gpio_enable_module_pin(ADC_AUX_PIN, ADC_AUX_FUNCTION);
     gpio_enable_module_pin(ADC_BATTERY_V_PIN, ADC_BATTERY_V_FUNCTION);
     gpio_enable_module_pin(ADC_BATTERY_I_PIN, ADC_BATTERY_I_FUNCTION);
-    sysclk_enable_pbc_module(GP_ADC_SYSCLK);
 
     /* Just in case */
     ADCIFA_disable();
@@ -133,7 +133,7 @@ void gp_init(void) {
 
     /* Configure the ADC, and enable it */
     GP_ADC->scr = 0xffffffffu;
-    adcifa_configure(GP_ADC, &adc_opts, sysclk_get_pbc_hz());
+    adcifa_configure(GP_ADC, &adc_opts, CONFIG_MAIN_HZ);
 
     /* Trigger SOC to begin loop */
     GP_ADC->scr = 0xffffffffu;
@@ -154,6 +154,8 @@ void gp_tick(void) {
     fcs_parameter_set_device_id(&param, 0);
     param.data.u8[0] = (uint8_t)(gp_get_pins() & 0xFFu);
     (void)fcs_log_add_parameter(&cpu_conn.out_log, &param);
+
+	return;
 
     /* Get ADC values from sample data */
     uint32_t adc_totals[GP_NUM_ADCS];
@@ -189,11 +191,12 @@ void gp_tick(void) {
         samples_read = 0;
         samples_avail = 0;
         gp_adc_last_sample_idx = 0;
+
         ADCIFA_disable();
 
         /* Configure PDCA transfer in ring buffer mode */
-        irqflags_t flags = cpu_irq_save();
         pdca_channel->cr = AVR32_PDCA_TDIS_MASK;
+        pdca_channel->idr = 0xFFFFFFFFu;
         pdca_channel->mar = (uint32_t)gp_adc_samples;
         pdca_channel->tcr = GP_ADC_BUF_SIZE;
         pdca_channel->marr = (uint32_t)gp_adc_samples;
@@ -203,7 +206,6 @@ void gp_tick(void) {
             | (1 << AVR32_PDCA_RING_OFFSET);
         pdca_channel->cr = AVR32_PDCA_ECLR_MASK | AVR32_PDCA_TEN_MASK;
         pdca_channel->isr;
-        cpu_irq_restore(flags);
 
         ADCIFA_enable();
     }

@@ -125,14 +125,14 @@ checksum u16
 
 /* Sanity checks */
 #define Ubx_state_is_valid(x) \
-    (UBX_POWERING_UP <= (x) && (x) <= UBX_POWERING_DOWN)
+    ((x) <= UBX_POWERING_DOWN)
 #define Ubx_parser_state_is_valid(x) \
-    (UBX_PARSER_NO_MSG <= (x) && (x) <= UBX_PARSER_DONE_MSG)
+    ((x) <= UBX_PARSER_DONE_MSG)
 
 static enum ubx_state_t ubx_state = UBX_POWERING_DOWN;
 static uint32_t ubx_state_timer; /* tracks time in current state */
 
-static uint8_t ubx_inbuf[UBX_INBUF_SIZE];
+static volatile uint8_t ubx_inbuf[UBX_INBUF_SIZE];
 static uint8_t ubx_msgbuf[UBX_MSGBUF_SIZE];
 
 static enum ubx_msg_parser_state_t ubx_inbuf_parse_state =
@@ -155,16 +155,11 @@ static inline void ubx_state_transition(enum ubx_state_t new_state) {
 }
 
 void ubx_init(void) {
-    ubx_state_timer = 0;
-    ubx_inbuf_parse_state = UBX_PARSER_NO_MSG;
-    ubx_inbuf_msg_len_remaining = 0;
-    ubx_inbuf_idx = 0;
-    ubx_msgbuf_idx = 0;
+    uint32_t result;
 
     /* USART GPIO pin configuration and sysclk setup */
     gpio_enable_module_pin(GPS_USART_RXD_PIN, GPS_USART_RXD_FUNCTION);
     gpio_enable_module_pin(GPS_USART_TXD_PIN, GPS_USART_TXD_FUNCTION);
-    sysclk_enable_pba_module(GPS_USART_SYSCLK);
 
     /* Configure GPS power enable */
     gpio_configure_pin(GPS_ENABLE_PIN, GPIO_DIR_OUTPUT | GPIO_INIT_LOW);
@@ -176,9 +171,7 @@ void ubx_init(void) {
     usart_options.paritytype = USART_NO_PARITY;
     usart_options.stopbits = USART_1_STOPBIT;
     usart_options.channelmode = USART_NORMAL_CHMODE;
-    GPS_USART->idr = 0xFFFFFFFFu;
-    uint32_t result = usart_init_rs232(GPS_USART, &usart_options,
-        sysclk_get_pba_hz());
+    result = usart_init_rs232(GPS_USART, &usart_options, CONFIG_MAIN_HZ);
     fcs_assert(result == USART_SUCCESS);
 }
 
@@ -226,8 +219,8 @@ void ubx_tick(void) {
         ubx_inbuf_idx = 0;
         ubx_inbuf_parse_state = UBX_PARSER_NO_MSG;
 
-        irqflags_t flags = cpu_irq_save();
         pdca_channel->cr = AVR32_PDCA_TDIS_MASK;
+        pdca_channel->idr = 0xFFFFFFFFu;
         pdca_channel->mar = (uint32_t)ubx_inbuf;
         pdca_channel->tcr = UBX_INBUF_SIZE;
         pdca_channel->marr = (uint32_t)ubx_inbuf;
@@ -237,7 +230,6 @@ void ubx_tick(void) {
             | (1 << AVR32_PDCA_RING_OFFSET);
         pdca_channel->cr = AVR32_PDCA_ECLR_MASK | AVR32_PDCA_TEN_MASK;
         pdca_channel->isr;
-        cpu_irq_restore(flags);
     }
 
     for (; bytes_avail && ubx_inbuf_parse_state != UBX_PARSER_DONE_MSG;

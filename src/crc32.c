@@ -117,7 +117,6 @@ uint32_t crc) {
 
     size_t i;
     /* loop over the buffer data */
-    #pragma MUST_ITERATE(1)
     for (i = 0; i < nbytes; i++) {
         crc = crc_lookup[(crc ^ pdata[i]) & 0xFFu] ^ (crc >> 8);
     }
