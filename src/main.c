@@ -117,6 +117,16 @@ int main(void) {
 		comms_set_cpu_status(Get_system_register(AVR32_COUNT) - start_t);
         frame++;
 
+        /*
+        If we lose an entire frame, skip the next one to avoid compounding the
+        issue, and flash LED3 to alert.
+        */
+        if ((Get_system_register(AVR32_COUNT) - start_t) > counts_per_ms) {
+            LED_ON(LED3_GPIO);
+        } else {
+            LED_OFF(LED3_GPIO);
+        }
+
         while ((Get_system_register(AVR32_COUNT) - start_t) < counts_per_ms) {
             /* FIXME: use udelay instead of busy loop */
             cpu_relax();
@@ -124,16 +134,5 @@ int main(void) {
 
 		/* Transmit the CPU packet at ~exactly the same time each frame */
         comms_start_transmit();
-
-        /*
-        If we lose an entire frame, skip the next one to avoid compounding the
-        issue, and flash LED3 to alert.
-        */
-        if ((Get_system_register(AVR32_COUNT) - start_t) > counts_per_ms + 2000u) {
-            //frame = Get_system_register(AVR32_COUNT) / counts_per_ms;
-            LED_ON(LED3_GPIO);
-        } else {
-            LED_OFF(LED3_GPIO);
-        }
     }
 }
