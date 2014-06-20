@@ -32,17 +32,38 @@ SOFTWARE.
 #include "peripherals/mpu6000.h"
 #include "peripherals/ms4525.h"
 
+static void sysclk_init(void);
+
 static void sysclk_init(void) {
-    pll_enable_config_defaults(0);
+    struct pll_config pllcfg;
+
+    cpu_irq_disable();
+
+    if (pll_is_locked(0)) {
+        pll_disable(0);
+    }
+
+    if (!osc_is_ready(OSC_ID_OSC0)) {
+        osc_enable(OSC_ID_OSC0);
+        osc_wait_ready(OSC_ID_OSC0);
+    }
+
+    pll_config_init(&pllcfg, CONFIG_PLL0_SOURCE, CONFIG_PLL0_DIV,
+                    CONFIG_PLL0_MUL);
+    pll_enable(&pllcfg, 0);
+
+    while (!pll_is_locked(0));
+
     /* Set a flash wait state depending on the new cpu frequency. */
     if (CONFIG_MAIN_HZ > 33000000) {
         AVR32_FLASHC.FCR.fws =  1;
     }
 
-    cpu_irq_disable();
     AVR32_PM.unlock = 0xaa000000 | AVR32_PM_MCCTRL;
     AVR32_PM.mcctrl = CONFIG_SYSCLK_SOURCE;
+
     while (!(AVR32_PM.SR.ckrdy));
+
     cpu_irq_enable();
 }
 
@@ -72,12 +93,14 @@ int main(void) {
     LED_OFF(LED0_GPIO);
     LED_OFF(LED3_GPIO);
 
-    uint32_t counts_per_ms, frame;
+    uint32_t counts_per_ms, frame, start_t;
     counts_per_ms = CONFIG_MAIN_HZ / 1000u;
     frame = Get_system_register(AVR32_COUNT) / counts_per_ms;
     while (true) {
+		start_t = frame * counts_per_ms;
+
         /* Input/output procedure */
-        gp_tick();
+        //gp_tick();
 
         /* Sensor input procedures */
         accel_gyro_tick();
@@ -85,16 +108,13 @@ int main(void) {
         magnetometer_tick();
         pitot_tick();
         gps_tick();
-
         /* Communications input/output */
         comms_tick();
-
         /* PWM output procedure */
         pwm_tick();
 
         /* Work out CPU usage for the last frame */
-        uint32_t start_t = frame * counts_per_ms;
-        comms_set_cpu_status(Get_system_register(AVR32_COUNT) - start_t);
+		comms_set_cpu_status(Get_system_register(AVR32_COUNT) - start_t);
         frame++;
 
         while ((Get_system_register(AVR32_COUNT) - start_t) < counts_per_ms) {
@@ -102,12 +122,18 @@ int main(void) {
             cpu_relax();
         }
 
-        if ((Get_system_register(AVR32_COUNT) - start_t) > 8u * counts_per_ms / 7u) {
-            /* Lost an entire frame! */
-            fcs_assert(false);
-        }
-
-        /* Transmit the CPU packet at ~exactly the same time each frame */
+		/* Transmit the CPU packet at ~exactly the same time each frame */
         comms_start_transmit();
+
+        /*
+        If we lose an entire frame, skip the next one to avoid compounding the
+        issue, and flash LED3 to alert.
+        */
+        if ((Get_system_register(AVR32_COUNT) - start_t) > counts_per_ms + 2000u) {
+            //frame = Get_system_register(AVR32_COUNT) / counts_per_ms;
+            LED_ON(LED3_GPIO);
+        } else {
+            LED_OFF(LED3_GPIO);
+        }
     }
 }

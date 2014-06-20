@@ -45,7 +45,6 @@ struct i2c_device_t {
     uint8_t scl_pin_id;
     uint8_t scl_function;
     uint8_t enable_pin_id;
-    uint8_t sysclk_id;
 
     /* TWIM/PDCA configuration */
     struct twim_pdca_cfg_t twim_cfg;

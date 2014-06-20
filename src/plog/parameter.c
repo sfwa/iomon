@@ -134,7 +134,7 @@ size_t precision_bits, size_t num_values) {
             FCS_PARAMETER_HEADER_TYPE_MASK);
 }
 
-static inline bool _validate_parameter(
+static bool _validate_parameter(
 const struct fcs_parameter_t *parameter) {
     bool valid = true;
     if (!parameter) {
@@ -259,86 +259,6 @@ uint8_t key[4], uint8_t *restrict value, size_t value_length) {
 }
 
 /*
-Convert the values associated with a parameter into an array of doubles
-normalized to the range [0.0, 1.0).
-
-Returns the number of values in the parameter.
-*/
-size_t fcs_parameter_get_values_d(
-const struct fcs_parameter_t *restrict parameter, double *restrict out_value,
-size_t out_value_length) {
-    fcs_assert(_validate_parameter(parameter));
-    fcs_assert(out_value);
-    fcs_assert((size_t)out_value % 8 == 0);
-
-    enum fcs_parameter_type_t type = fcs_parameter_get_type(parameter);
-    size_t precision = fcs_parameter_get_precision_bits(parameter);
-    size_t n = fcs_parameter_get_num_values(parameter), i;
-    enum fcs_value_type_t datatype = fcs_parameter_get_value_type(parameter);
-
-    if (n > out_value_length) {
-        n = out_value_length;
-    }
-
-#define COPYLOOP(d) for (i = 0; i < n; i++) { \
-                        out_value[i] = (double)parameter->data.d[i]; \
-                    }
-
-    if (type == FCS_PARAMETER_PRESSURE_TEMP && n == 2u) {
-        /* Special-cased due to a mix of signed and unsigned values */
-        out_value[0] = (double)parameter->data.u16[0];
-        out_value[1] = (double)parameter->data.i16[1];
-    } else if (type == FCS_PARAMETER_GPS_POSITION_LLA && n == 3u) {
-        /* Special-cased due to fixed scaling and higher precision */
-        out_value[0] = parameter->data.i32[0] * 1e-7 * (M_PI/180.0);
-        out_value[1] = parameter->data.i32[1] * 1e-7 * (M_PI/180.0);
-        out_value[2] = parameter->data.i32[2] * 1e-3;
-    } else if (precision == 8u) {
-        /* Handle 1-byte values */
-        if (datatype == FCS_VALUE_UNSIGNED) {
-            COPYLOOP(u8)
-        } else if (datatype == FCS_VALUE_SIGNED) {
-            COPYLOOP(i8)
-        } else if (datatype == FCS_VALUE_FLOAT) {
-            fcs_assert(false);
-        }
-    } else if (precision == 16u) {
-        /* Handle 2-byte values */
-        if (datatype == FCS_VALUE_UNSIGNED) {
-            COPYLOOP(u16)
-        } else if (datatype == FCS_VALUE_SIGNED) {
-            COPYLOOP(i16)
-        } else if (datatype == FCS_VALUE_FLOAT) {
-            COPYLOOP(f16)
-        }
-    } else if (precision == 32u) {
-        /* Handle 4-byte values */
-        if (datatype == FCS_VALUE_UNSIGNED) {
-            COPYLOOP(u32)
-        } else if (datatype == FCS_VALUE_SIGNED) {
-            COPYLOOP(i32)
-        } else if (datatype == FCS_VALUE_FLOAT) {
-            COPYLOOP(f32)
-        }
-    } else if (precision == 64u) {
-        /* Handle 4-byte values */
-        if (datatype == FCS_VALUE_UNSIGNED) {
-            COPYLOOP(u64)
-        } else if (datatype == FCS_VALUE_SIGNED) {
-            COPYLOOP(i64)
-        } else if (datatype == FCS_VALUE_FLOAT) {
-            COPYLOOP(f64)
-        }
-    } else {
-        fcs_assert(false);
-    }
-
-#undef COPYLOOP
-
-    return n;
-}
-
-/*
 Add a parameter entry to a log packet. Returns `true` if the parameter could
 be added, or `false` if it couldn't.
 */
@@ -346,6 +266,7 @@ bool fcs_log_add_parameter(struct fcs_log_t *restrict plog,
 struct fcs_parameter_t *restrict parameter) {
     fcs_assert(plog);
     fcs_assert(_validate_parameter(parameter));
+    fcs_assert(plog->canary1 == 0xdeadbeefu && plog->canary2 == 0xfeedfaceu);
 
     /*
     If there's not enough space in the log record to save the value, return
@@ -364,32 +285,6 @@ struct fcs_parameter_t *restrict parameter) {
 }
 
 /*
-Set the device ID of all parameters in the log to `device_id`
-*/
-void fcs_log_set_parameter_device_id(struct fcs_log_t *restrict plog,
-uint8_t device_id) {
-    fcs_assert(plog);
-    fcs_assert(plog->data[0] > (uint8_t)FCS_LOG_TYPE_INVALID);
-    fcs_assert(plog->data[0] < (uint8_t)FCS_LOG_TYPE_LAST);
-    fcs_assert(FCS_LOG_MIN_LENGTH <= plog->length &&
-               plog->length <= FCS_LOG_MAX_LENGTH);
-
-    size_t i, length = 0;
-
-    for (i = 5u; i < plog->length - 3u; i += length) {
-        length = _extract_length(plog->data[i]);
-        if (!length || length > sizeof(struct fcs_parameter_t) ||
-                i + length > plog->length ||
-                plog->data[i + offsetof(struct fcs_parameter_t, type)] ==
-                FCS_PARAMETER_INVALID) {
-            return;
-        }
-
-        plog->data[i + offsetof(struct fcs_parameter_t, device)] = device_id;
-    }
-}
-
-/*
 Finds a parameter with a given device and type in the log, and copies the
 result to `out_parameter`.
 
@@ -403,6 +298,7 @@ uint8_t device_id, struct fcs_parameter_t *restrict out_parameter) {
     fcs_assert(FCS_LOG_MIN_LENGTH <= plog->length &&
                plog->length <= FCS_LOG_MAX_LENGTH);
     fcs_assert(out_parameter);
+    fcs_assert(plog->canary1 == 0xdeadbeefu && plog->canary2 == 0xfeedfaceu);
 
     size_t i, length;
 
@@ -424,42 +320,4 @@ uint8_t device_id, struct fcs_parameter_t *restrict out_parameter) {
     }
 
     return false;
-}
-
-/*
-Finds all parameters with a given type, and copies the first `max_parameters`
-of them to the array `out_parameters`.
-
-Returns the number of parameters found
-*/
-size_t fcs_parameter_find_all_by_type(const struct fcs_log_t *restrict plog,
-enum fcs_parameter_type_t type,
-struct fcs_parameter_t *restrict out_parameters, size_t max_parameters) {
-    fcs_assert(plog);
-    fcs_assert(FCS_LOG_MIN_LENGTH <= plog->length &&
-               plog->length <= FCS_LOG_MAX_LENGTH);
-    fcs_assert(out_parameters);
-
-    size_t i, length, count = 0;
-
-    for (i = 5u; i < plog->length - 3u && count < max_parameters;
-            i += length) {
-        length = _extract_length(plog->data[i]);
-        if (!length || length > sizeof(struct fcs_parameter_t) ||
-                i + length > plog->length ||
-                plog->data[i + offsetof(struct fcs_parameter_t, type)] ==
-                FCS_PARAMETER_INVALID) {
-            return false;
-        }
-
-        if (plog->data[i + 2u] == (uint8_t)type) {
-            memcpy(&out_parameters[count], &plog->data[i], length);
-            /* Only record the parameter if it's valid */
-            if (_validate_parameter(&out_parameters[count])) {
-                count++;
-            }
-        }
-    }
-
-    return count;
 }

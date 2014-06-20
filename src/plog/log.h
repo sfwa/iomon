@@ -50,8 +50,10 @@ Binary log packet (all multi-byte values are LE):
 4 bytes CRC32
 */
 struct fcs_log_t {
+    uint32_t canary1;
     size_t length;  /* excludes the size of the CRC32 (4 bytes) */
     uint8_t data[FCS_LOG_MAX_LENGTH + 4u];
+    uint32_t canary2;
 };
 
 /* Initialize a log packet with a type and packet index */
@@ -70,12 +72,5 @@ struct fcs_log_t *plog);
 /* Deserialize a log frame */
 bool fcs_log_deserialize(struct fcs_log_t *plog, const uint8_t *in_buf,
 size_t in_buf_len);
-
-/*
-Merge the logs `src` and `dst`, with the result stored in `dst`.
-
-If `dst` has insufficient space available, return `false`, otherwise `true`.
-*/
-bool fcs_log_merge(struct fcs_log_t *dst, const struct fcs_log_t *src);
 
 #endif

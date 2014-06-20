@@ -46,7 +46,7 @@ static const uint32_t gp_output_pins[GP_NUM_OUTPUTS] =
 /* Interleaved samples are stored in this buffer (i.e. 0 1 2 3 0 1 2 3) by
    the PDCA. The gp_adc_last_sample_idx value contains the index of the last
    ADC sample read. */
-static int16_t gp_adc_samples[GP_ADC_BUF_SIZE * 2u];
+static volatile int16_t gp_adc_samples[GP_ADC_BUF_SIZE * 2u];
 static uint32_t gp_adc_last_sample_idx;
 
 static void gp_set_pins(uint32_t pin_values);
@@ -77,12 +77,9 @@ void gp_init(void) {
     gpio_configure_pin(LED2_GPIO, GPIO_DIR_OUTPUT | GPIO_INIT_HIGH);
     gpio_configure_pin(LED3_GPIO, GPIO_DIR_OUTPUT | GPIO_INIT_HIGH);
 
-	return;
-
     /* Initialize ADCs */
 
     /* Set GPIOs for channels 0-3 */
-    sysclk_enable_pbc_module(GP_ADC_SYSCLK);
     gpio_enable_module_pin(ADC_PITOT_PIN, ADC_PITOT_FUNCTION);
     gpio_enable_module_pin(ADC_AUX_PIN, ADC_AUX_FUNCTION);
     gpio_enable_module_pin(ADC_BATTERY_V_PIN, ADC_BATTERY_V_FUNCTION);
@@ -155,13 +152,9 @@ void gp_tick(void) {
     param.data.u8[0] = (uint8_t)(gp_get_pins() & 0xFFu);
     (void)fcs_log_add_parameter(&cpu_conn.out_log, &param);
 
-	return;
-
     /* Get ADC values from sample data */
-    uint32_t adc_totals[GP_NUM_ADCS];
-    uint16_t adc_sample_count[GP_NUM_ADCS];
-    memset(adc_totals, 0x00, sizeof(adc_totals));
-    memset(adc_sample_count, 0x00, sizeof(adc_sample_count));
+    uint32_t adc_totals[GP_NUM_ADCS] = {0, 0, 0, 0};
+    uint32_t adc_sample_count[GP_NUM_ADCS] = {0, 0, 0, 0};
 
     /* Loop over new samples (ring buffer), add totals to the corresponding
        adc_totals value, and increment adc_sample_count for each. Divide each
@@ -170,15 +163,16 @@ void gp_tick(void) {
         &AVR32_PDCA.channel[PDCA_CHANNEL_ADC_RX];
 
     uint32_t samples_read = GP_ADC_BUF_SIZE - pdca_channel->tcr;
-    uint16_t samples_avail = 0;
+    uint32_t samples_avail = 0, sample = 0, 
+			 last_sample = gp_adc_last_sample_idx & (GP_ADC_BUF_SIZE - 1);
 
     fcs_assert(samples_read <= GP_ADC_BUF_SIZE);
 
     /* Work out the number of bytes available in the ring buffer */
-    if (samples_read > gp_adc_last_sample_idx) {
-        samples_avail = samples_read - gp_adc_last_sample_idx;
-    } else if (samples_read < gp_adc_last_sample_idx) {
-        samples_avail = (GP_ADC_BUF_SIZE - gp_adc_last_sample_idx - 1) +
+    if (samples_read > last_sample) {
+        samples_avail = samples_read - last_sample;
+    } else if (samples_read < last_sample) {
+        samples_avail = (GP_ADC_BUF_SIZE - last_sample - 1) +
             samples_read;
     } else {
         /* samples_read == gp_adc_last_sample_idx, i.e. no new samples */
@@ -214,19 +208,19 @@ void gp_tick(void) {
         /* If the number of samples is greater than 64 (corresponding to
            buffer size), something has gone badly wrong above. */
         fcs_assert(
-            adc_sample_count[gp_adc_last_sample_idx % GP_NUM_ADCS] <= 4);
+            adc_sample_count[gp_adc_last_sample_idx & (GP_NUM_ADCS - 1)] <= 4);
 
-        int16_t sample = gp_adc_samples[gp_adc_last_sample_idx];
-        if (sample < 0) { /* Clamp negative samples to zero */
+        if (gp_adc_samples[gp_adc_last_sample_idx] < 0) { /* Clamp negative samples to zero */
             sample = 0;
-        } else if (sample >= 2047) { /* Clamp samples to +2047 */
+        } else if (gp_adc_samples[gp_adc_last_sample_idx] >= 2047) { /* Clamp samples to +2047 */
             sample = 2047;
-        }
+        } else {
+			sample = (uint32_t)gp_adc_samples[gp_adc_last_sample_idx];
+		}
 
-        adc_totals[gp_adc_last_sample_idx % GP_NUM_ADCS] += (uint32_t)sample;
-        adc_sample_count[gp_adc_last_sample_idx % GP_NUM_ADCS]++;
-        gp_adc_last_sample_idx = (gp_adc_last_sample_idx + 1) &
-            (GP_ADC_BUF_SIZE - 1);
+        adc_totals[gp_adc_last_sample_idx & (GP_NUM_ADCS - 1)] += sample;
+        adc_sample_count[gp_adc_last_sample_idx & (GP_NUM_ADCS - 1)]++;
+        gp_adc_last_sample_idx++;
     }
 
     for (uint8_t i = 0; i < GP_NUM_ADCS; i++) {

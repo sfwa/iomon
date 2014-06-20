@@ -70,7 +70,6 @@ static struct i2c_device_t ms5611 = {
     .scl_pin_id = MS5611_TWI_TWCK_PIN,
     .scl_function = MS5611_TWI_TWCK_FUNCTION,
     .enable_pin_id = MS5611_ENABLE_PIN,
-    .sysclk_id = MS5611_TWI_SYSCLK,
 
     .twim_cfg = {
         .twim = MS5611_TWI,
@@ -209,6 +208,9 @@ void ms5611_tick(void) {
                 param.data.u16[0] = swap_u16(conv_result.p >> 1u);
                 param.data.u16[1] = swap_u16(conv_result.temp + 4000);
                 (void)fcs_log_add_parameter(&cpu_conn.out_log, &param);
+
+                sensor_status.updated |= UPDATED_BARO;
+                sensor_status.baro_count++;
             } else {
                 /* Something went wrong */
                 fcs_assert(false);

@@ -69,7 +69,6 @@ static struct i2c_device_t hmc5883 = {
     .scl_pin_id = HMC5883_TWI_TWCK_PIN,
     .scl_function = HMC5883_TWI_TWCK_FUNCTION,
     .enable_pin_id = HMC5883_ENABLE_PIN,
-    .sysclk_id = HMC5883_TWI_SYSCLK,
 
     .twim_cfg = {
         .twim = HMC5883_TWI,
@@ -119,9 +118,7 @@ void hmc5883_measure(void) {
 
         if (read_result == TWIM_TRANSACTION_EXECUTED) {
             /* Convert the result and update the comms module */
-            measurement[0] = hmc5883_inbuf[0];
-			measurement[1] = hmc5883_inbuf[1];
-			measurement[2] = hmc5883_inbuf[2];
+            memcpy(measurement, hmc5883_inbuf, 6u);
 
             /*
             Magnetic field over-/underflow -- should maybe adjust sensitivity
@@ -144,6 +141,9 @@ void hmc5883_measure(void) {
             param.data.i16[1] = swap_i16(measurement[2]);
             param.data.i16[2] = swap_i16(-measurement[1]);
             (void)fcs_log_add_parameter(&cpu_conn.out_log, &param);
+
+            sensor_status.updated |= UPDATED_MAG;
+            sensor_status.mag_count++;
 
             hmc5883.state_timer = 0;
         }

@@ -157,7 +157,7 @@ static inline void ubx_state_transition(enum ubx_state_t new_state) {
 void ubx_init(void) {
     uint32_t result;
 
-    /* USART GPIO pin configuration and sysclk setup */
+    /* USART GPIO pin configuration */
     gpio_enable_module_pin(GPS_USART_RXD_PIN, GPS_USART_RXD_FUNCTION);
     gpio_enable_module_pin(GPS_USART_TXD_PIN, GPS_USART_TXD_FUNCTION);
 
@@ -397,6 +397,9 @@ static void ubx_process_latest_msg(void) {
             param.data.i16[1] = swap_i16(clamp_s16(swap_i32(msg.velE)));
             param.data.i16[2] = swap_i16(clamp_s16(swap_i32(msg.velD)));
             (void)fcs_log_add_parameter(&cpu_conn.out_log, &param);
+
+            sensor_status.updated |= UPDATED_GPS;
+            sensor_status.gps_count++;
         }
 
         ubx_state_timer = 0;

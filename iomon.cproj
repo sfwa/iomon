@@ -18,18 +18,14 @@
     <ToolchainFlavour>Native</ToolchainFlavour>
     <KeepTimersRunning>true</KeepTimersRunning>
     <OverrideVtor>false</OverrideVtor>
-    <OverrideVtorValue />
+    <OverrideVtorValue>exception_table</OverrideVtorValue>
     <eraseonlaunchrule>0</eraseonlaunchrule>
-    <avrtool>com.atmel.avrdbg.tool.jtagicemk3</avrtool>
+    <avrtool>com.atmel.avrdbg.tool.jtagice3plus</avrtool>
     <avrtoolinterface>JTAG</avrtoolinterface>
     <com_atmel_avrdbg_tool_jtagicemk3>
       <ToolType>com.atmel.avrdbg.tool.jtagicemk3</ToolType>
       <ToolName>JTAGICE3</ToolName>
       <ToolNumber>J30200016025</ToolNumber>
-      <KeepTimersRunning>true</KeepTimersRunning>
-      <OverrideVtor>false</OverrideVtor>
-      <OverrideVtorValue>
-      </OverrideVtorValue>
       <Channel>
         <host>127.0.0.1</host>
         <port>3083</port>
@@ -38,7 +34,7 @@
       <ToolOptions>
         <InterfaceName>JTAG</InterfaceName>
         <InterfaceProperties>
-          <JtagDbgClock>250000</JtagDbgClock>
+          <JtagDbgClock>0</JtagDbgClock>
           <JtagProgClock>1000000</JtagProgClock>
           <IspClock>150000</IspClock>
           <JtagInChain>false</JtagInChain>
@@ -53,7 +49,7 @@
     <AsfVersion>3.5.0</AsfVersion>
     <CacheFlash>true</CacheFlash>
     <ProgFlashFromRam>true</ProgFlashFromRam>
-    <RamSnippetAddress />
+    <RamSnippetAddress>0x20000000</RamSnippetAddress>
     <UncachedRange />
     <BootSegment>2</BootSegment>
     <AsfFrameworkConfig>
@@ -68,6 +64,17 @@
         </dependencies>
       </framework-data>
     </AsfFrameworkConfig>
+    <com_atmel_avrdbg_tool_jtagice3plus>
+      <ToolOptions>
+        <InterfaceProperties>
+          <JtagDbgClock>7500000</JtagDbgClock>
+        </InterfaceProperties>
+        <InterfaceName>JTAG</InterfaceName>
+      </ToolOptions>
+      <ToolType>com.atmel.avrdbg.tool.jtagice3plus</ToolType>
+      <ToolNumber>J30200016025</ToolNumber>
+      <ToolName>JTAGICE3</ToolName>
+    </com_atmel_avrdbg_tool_jtagice3plus>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
     <ToolchainSettings>
@@ -154,85 +161,87 @@
   <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
     <ToolchainSettings>
       <Avr32Gcc>
-  <avr32gcc.common.outputfiles.hex>True</avr32gcc.common.outputfiles.hex>
-  <avr32gcc.common.outputfiles.lss>True</avr32gcc.common.outputfiles.lss>
-  <avr32gcc.common.outputfiles.eep>True</avr32gcc.common.outputfiles.eep>
-  <avr32gcc.common.outputfiles.srec>True</avr32gcc.common.outputfiles.srec>
-  <avr32gcc.compiler.symbols.DefSymbols>
-    <ListValues>
-      <Value>BOARD=UC3C_EK</Value>
-      <Value>UDD_ENABLE</Value>
-      <Value>_ASSERT_ENABLE_</Value>
-    </ListValues>
-  </avr32gcc.compiler.symbols.DefSymbols>
-  <avr32gcc.compiler.directories.IncludePaths>
-    <ListValues>
-      <Value>../lib/preprocessor</Value>
-      <Value>../lib/flashc</Value>
-      <Value>../lib/usart</Value>
-      <Value>../lib/sleepmgr</Value>
-      <Value>../lib/intc</Value>
-      <Value>../lib/pm</Value>
-      <Value>../lib</Value>
-      <Value>../lib/clock</Value>
-      <Value>../lib/gpio</Value>
-      <Value>../lib/scif</Value>
-      <Value>../src</Value>
-      <Value>../src/config</Value>
-      <Value>../lib/pdca</Value>
-    </ListValues>
-  </avr32gcc.compiler.directories.IncludePaths>
-  <avr32gcc.compiler.optimization.level>Optimize (-O1)</avr32gcc.compiler.optimization.level>
-  <avr32gcc.compiler.optimization.DebugLevel>Maximum (-g3)</avr32gcc.compiler.optimization.DebugLevel>
-  <avr32gcc.compiler.warnings.AllWarnings>True</avr32gcc.compiler.warnings.AllWarnings>
-  <avr32gcc.compiler.warnings.ExtraWarnings>True</avr32gcc.compiler.warnings.ExtraWarnings>
-  <avr32gcc.compiler.warnings.Undefined>True</avr32gcc.compiler.warnings.Undefined>
-  <avr32gcc.compiler.warnings.Pedantic>True</avr32gcc.compiler.warnings.Pedantic>
-  <avr32gcc.compiler.miscellaneous.OtherFlags>-Werror-implicit-function-declaration -Wmissing-prototypes -Wpointer-arith -Wstrict-prototypes -mno-cond-exec-before-reload -mrelax -std=gnu99</avr32gcc.compiler.miscellaneous.OtherFlags>
-  <avr32gcc.linker.general.DoNotUseStandardStartFiles>True</avr32gcc.linker.general.DoNotUseStandardStartFiles>
-  <avr32gcc.linker.libraries.Libraries>
-    <ListValues>
-      <Value>libm</Value>
-    </ListValues>
-  </avr32gcc.linker.libraries.Libraries>
-  <avr32gcc.linker.miscellaneous.LinkerFlags>-T../lib/linker/link_uc3c0512c.lds -Wl,-e,_trampoline</avr32gcc.linker.miscellaneous.LinkerFlags>
-  <avr32gcc.assembler.general.AssemblerFlags>-mrelax</avr32gcc.assembler.general.AssemblerFlags>
-  <avr32gcc.assembler.general.IncludePaths>
-    <ListValues>
-      <Value>../lib/preprocessor</Value>
-      <Value>../lib/flashc</Value>
-      <Value>../lib/usart</Value>
-      <Value>../lib/sleepmgr</Value>
-      <Value>../lib/intc</Value>
-      <Value>../lib/pm</Value>
-      <Value>../lib</Value>
-      <Value>../lib/clock</Value>
-      <Value>../lib/gpio</Value>
-      <Value>../lib/scif</Value>
-      <Value>../src</Value>
-      <Value>../src/config</Value>
-    </ListValues>
-  </avr32gcc.assembler.general.IncludePaths>
-  <avr32gcc.assembler.debugging.DebugLevel>Default (-g)</avr32gcc.assembler.debugging.DebugLevel>
-  <avr32gcc.preprocessingassembler.general.AssemblerFlags>-DBOARD=UC3C_EK -DUDD_ENABLE -mrelax</avr32gcc.preprocessingassembler.general.AssemblerFlags>
-  <avr32gcc.preprocessingassembler.general.IncludePaths>
-    <ListValues>
-      <Value>../lib/preprocessor</Value>
-      <Value>../lib/flashc</Value>
-      <Value>../lib/usart</Value>
-      <Value>../lib/sleepmgr</Value>
-      <Value>../lib/intc</Value>
-      <Value>../lib/pm</Value>
-      <Value>../lib</Value>
-      <Value>../lib/clock</Value>
-      <Value>../lib/gpio</Value>
-      <Value>../lib/scif</Value>
-      <Value>../src</Value>
-      <Value>../src/config</Value>
-    </ListValues>
-  </avr32gcc.preprocessingassembler.general.IncludePaths>
-  <avr32gcc.preprocessingassembler.debugging.DebugLevel>Default (-Wa,-g)</avr32gcc.preprocessingassembler.debugging.DebugLevel>
-</Avr32Gcc>
+        <avr32gcc.common.outputfiles.hex>True</avr32gcc.common.outputfiles.hex>
+        <avr32gcc.common.outputfiles.lss>True</avr32gcc.common.outputfiles.lss>
+        <avr32gcc.common.outputfiles.eep>True</avr32gcc.common.outputfiles.eep>
+        <avr32gcc.common.outputfiles.srec>True</avr32gcc.common.outputfiles.srec>
+        <avr32gcc.compiler.symbols.DefSymbols>
+          <ListValues>
+            <Value>BOARD=UC3C_EK</Value>
+            <Value>UDD_ENABLE</Value>
+            <Value>_ASSERT_ENABLE_</Value>
+          </ListValues>
+        </avr32gcc.compiler.symbols.DefSymbols>
+        <avr32gcc.compiler.directories.IncludePaths>
+          <ListValues>
+            <Value>../lib/preprocessor</Value>
+            <Value>../lib/flashc</Value>
+            <Value>../lib/usart</Value>
+            <Value>../lib/sleepmgr</Value>
+            <Value>../lib/intc</Value>
+            <Value>../lib/pm</Value>
+            <Value>../lib</Value>
+            <Value>../lib/clock</Value>
+            <Value>../lib/gpio</Value>
+            <Value>../lib/scif</Value>
+            <Value>../src</Value>
+            <Value>../src/config</Value>
+            <Value>../lib/pdca</Value>
+          </ListValues>
+        </avr32gcc.compiler.directories.IncludePaths>
+        <avr32gcc.compiler.optimization.level>Optimize (-O1)</avr32gcc.compiler.optimization.level>
+        <avr32gcc.compiler.optimization.PutLargeImmediatesInConstPool>True</avr32gcc.compiler.optimization.PutLargeImmediatesInConstPool>
+        <avr32gcc.compiler.optimization.DebugLevel>Maximum (-g3)</avr32gcc.compiler.optimization.DebugLevel>
+        <avr32gcc.compiler.warnings.AllWarnings>True</avr32gcc.compiler.warnings.AllWarnings>
+        <avr32gcc.compiler.warnings.ExtraWarnings>True</avr32gcc.compiler.warnings.ExtraWarnings>
+        <avr32gcc.compiler.warnings.Undefined>True</avr32gcc.compiler.warnings.Undefined>
+        <avr32gcc.compiler.warnings.Pedantic>True</avr32gcc.compiler.warnings.Pedantic>
+        <avr32gcc.compiler.miscellaneous.OtherFlags>-Werror-implicit-function-declaration -Wmissing-prototypes -Wpointer-arith -Wstrict-prototypes -mno-cond-exec-before-reload -mrelax -std=gnu99</avr32gcc.compiler.miscellaneous.OtherFlags>
+        <avr32gcc.linker.general.DoNotUseStandardStartFiles>True</avr32gcc.linker.general.DoNotUseStandardStartFiles>
+        <avr32gcc.linker.libraries.Libraries>
+          <ListValues>
+            <Value>libm</Value>
+          </ListValues>
+        </avr32gcc.linker.libraries.Libraries>
+        <avr32gcc.linker.optimization.AllowDirectReferencesToDataSection>True</avr32gcc.linker.optimization.AllowDirectReferencesToDataSection>
+        <avr32gcc.linker.miscellaneous.LinkerFlags>-T../lib/linker/link_uc3c0512c.lds -Wl,-e,_trampoline</avr32gcc.linker.miscellaneous.LinkerFlags>
+        <avr32gcc.assembler.general.AssemblerFlags>-mrelax</avr32gcc.assembler.general.AssemblerFlags>
+        <avr32gcc.assembler.general.IncludePaths>
+          <ListValues>
+            <Value>../lib/preprocessor</Value>
+            <Value>../lib/flashc</Value>
+            <Value>../lib/usart</Value>
+            <Value>../lib/sleepmgr</Value>
+            <Value>../lib/intc</Value>
+            <Value>../lib/pm</Value>
+            <Value>../lib</Value>
+            <Value>../lib/clock</Value>
+            <Value>../lib/gpio</Value>
+            <Value>../lib/scif</Value>
+            <Value>../src</Value>
+            <Value>../src/config</Value>
+          </ListValues>
+        </avr32gcc.assembler.general.IncludePaths>
+        <avr32gcc.assembler.debugging.DebugLevel>Default (-g)</avr32gcc.assembler.debugging.DebugLevel>
+        <avr32gcc.preprocessingassembler.general.AssemblerFlags>-DBOARD=UC3C_EK -DUDD_ENABLE -mrelax</avr32gcc.preprocessingassembler.general.AssemblerFlags>
+        <avr32gcc.preprocessingassembler.general.IncludePaths>
+          <ListValues>
+            <Value>../lib/preprocessor</Value>
+            <Value>../lib/flashc</Value>
+            <Value>../lib/usart</Value>
+            <Value>../lib/sleepmgr</Value>
+            <Value>../lib/intc</Value>
+            <Value>../lib/pm</Value>
+            <Value>../lib</Value>
+            <Value>../lib/clock</Value>
+            <Value>../lib/gpio</Value>
+            <Value>../lib/scif</Value>
+            <Value>../src</Value>
+            <Value>../src/config</Value>
+          </ListValues>
+        </avr32gcc.preprocessingassembler.general.IncludePaths>
+        <avr32gcc.preprocessingassembler.debugging.DebugLevel>Default (-Wa,-g)</avr32gcc.preprocessingassembler.debugging.DebugLevel>
+      </Avr32Gcc>
     </ToolchainSettings>
   </PropertyGroup>
   <ItemGroup>
@@ -258,11 +267,6 @@
       <SubType>compile</SubType>
     </None>
     <None Include="lib\linker\link_uc3c0512c.lds">
-      <SubType>compile</SubType>
-    </None>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="lib\clock\sysclk.h">
       <SubType>compile</SubType>
     </None>
   </ItemGroup>
@@ -468,15 +472,6 @@
       <SubType>compile</SubType>
     </Compile>
     <Compile Include="lib\startup\trampoline_uc3.S">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="lib\clock\osc.c">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="lib\clock\pll.c">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="lib\clock\sysclk.c">
       <SubType>compile</SubType>
     </Compile>
     <Compile Include="src\main.c">

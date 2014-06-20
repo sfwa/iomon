@@ -37,30 +37,17 @@ SOFTWARE.
 See https://github.com/bendyer/uav/wiki/IO-Board-Design
 */
 
-/* Wait 10ms after receipt of last message before killing CPU, then
-   hold reset high for 0.2s. */
-#define CPU_TIMEOUT_TICKS 10u
-#define CPU_RESET_TICKS 200u
-#define CPU_STARTUP_TICKS 10000u
-
-#define UPDATED_ACCEL 0x01u
-#define UPDATED_BAROMETER 0x02u
-#define UPDATED_MAG 0x04u
-#define UPDATED_GPS 0x08u
-#define UPDATED_PITOT 0x10u
-
-
 #define TELEMETRY_INTERVAL 500u
 
 
 struct connection_t cpu_conn;
 struct connection_t gcs_conn;
+struct sensor_status_t sensor_status;
+
+volatile uint32_t g_t[10];
+
 static uint8_t cpu_tx_dma_buf[TX_BUF_LEN];
 static uint8_t gcs_tx_dma_buf[TX_BUF_LEN];
-
-static uint32_t accel_count, baro_count, mag_count, gps_count, pitot_count;
-
-static uint16_t cpu_reset_countdown_tick;
 
 static enum fcs_parameter_type_t cpu_feed_params[] = {
     FCS_PARAMETER_DERIVED_REFERENCE_PRESSURE,
@@ -179,8 +166,6 @@ void comms_init(void) {
     /* Configure CPU board reset output */
     gpio_configure_pin(CPU_RESET_PIN, GPIO_DIR_OUTPUT | GPIO_INIT_LOW);
 
-    cpu_reset_countdown_tick = CPU_STARTUP_TICKS;
-
     /* Configure CPU USART */
     usart_options.baudrate = 2604166u;
     usart_options.charlength = 8u;
@@ -194,7 +179,7 @@ void comms_init(void) {
     usart_options.baudrate = 57600u;
     usart_options.charlength = 8u;
     usart_options.paritytype = USART_NO_PARITY;
-    usart_options.stopbits = USART_1_STOPBIT;
+    usart_options.stopbits = 5;
     usart_options.channelmode = USART_NORMAL_CHMODE;
     result = usart_init_rs232(AUX_USART, &usart_options, CONFIG_MAIN_HZ);
     fcs_assert(result == USART_SUCCESS);
@@ -211,55 +196,32 @@ void comms_tick(void) {
     struct fcs_parameter_t param;
     volatile avr32_pdca_channel_t *pdca_channel;
 
-    static uint8_t sensors_updated = 0;
-
     fcs_assert(FCS_LOG_MIN_LENGTH <= cpu_conn.out_log.length &&
                cpu_conn.out_log.length <= FCS_LOG_MAX_LENGTH);
 
-    for (i = 5u; i < cpu_conn.out_log.length - 3u; ) {
-        param_len = _extract_length(cpu_conn.out_log.data[i]);
-        param_type = (enum fcs_parameter_type_t)cpu_conn.out_log.data[i + 2u];
-        if (param_type == FCS_PARAMETER_INVALID || !param_len ||
-                param_len > sizeof(struct fcs_parameter_t) ||
-                i + param_len > gcs_conn.in_log.length) {
-            break;
-        }
-
-        if (param_type == FCS_PARAMETER_ACCELEROMETER_XYZ) {
-            sensors_updated |= UPDATED_ACCEL;
-            accel_count++;
-        } else if (param_type == FCS_PARAMETER_PRESSURE_TEMP) {
-            sensors_updated |= UPDATED_BAROMETER;
-            baro_count++;
-        } else if (param_type == FCS_PARAMETER_MAGNETOMETER_XYZ) {
-            sensors_updated |= UPDATED_MAG;
-            mag_count++;
-        } else if (param_type == FCS_PARAMETER_GPS_POSITION_LLA) {
-            sensors_updated |= UPDATED_GPS;
-            gps_count++;
-        } else if (param_type == FCS_PARAMETER_PITOT) {
-            sensors_updated |= UPDATED_PITOT;
-            pitot_count++;
-        }
-
-		i += param_len;
-    }
+    g_t[0] = Get_system_register(AVR32_COUNT);
 
     /*
     Turn LED1 on if we haven't seen each of the sensors updated this second
     */
     if (cpu_conn.last_tx_packet_tick % 500 == 0) {
-        if (sensors_updated == (UPDATED_ACCEL | UPDATED_BAROMETER |
-                UPDATED_MAG | UPDATED_GPS | UPDATED_PITOT)) {
+        if (sensor_status.updated == (UPDATED_ACCEL | UPDATED_BARO |
+                                      UPDATED_MAG | UPDATED_GPS |
+                                      UPDATED_PITOT)) {
             LED_OFF(LED1_GPIO);
         } else {
             LED_ON(LED1_GPIO);
         }
-        sensors_updated = 0;
+        sensor_status.updated = 0;
     }
 
     comms_process_conn_rx(&cpu_conn, PDCA_CHANNEL_CPU_RX);
+
+    g_t[1] = Get_system_register(AVR32_COUNT) - g_t[0];
+
     comms_process_conn_rx(&gcs_conn, PDCA_CHANNEL_AUX_RX);
+
+    g_t[2] = Get_system_register(AVR32_COUNT) - g_t[0];
 
     /*
     If there's a waypoint or path update in the telemetry log, add that to the
@@ -291,24 +253,63 @@ void comms_tick(void) {
 		i += param_len;
     }
 
-    packet_len = fcs_log_serialize(gcs_conn.tx_buf, TX_BUF_LEN,
-	                               &cpu_conn.in_log);
+    g_t[3] = Get_system_register(AVR32_COUNT) - g_t[0];
 
-    /* Only send the telemetry packet every TELEMETRY_INTERVAL ticks */
+    /*
+	Only send the telemetry packet every TELEMETRY_INTERVAL ticks. The
+	last valid CPU packet is copied directly to the GCS TX buffer so
+	leave that there.
+
+    Transmit each set of 240 bytes over 60ms to avoid killing the buffer (100
+    bytes).
+	*/
 	pdca_channel = &AVR32_PDCA.channel[PDCA_CHANNEL_AUX_TX];
     if (pdca_channel->tcr == 0 &&
 			cpu_conn.last_tx_packet_tick % TELEMETRY_INTERVAL == 0) {
 		pdca_channel->cr = AVR32_PDCA_TDIS_MASK;
-
-        /* Validate the last data buffer */
-        fcs_assert(memcmp(gcs_conn.tx_buf, gcs_tx_dma_buf, TX_BUF_LEN) == 0);
 
 		memcpy(gcs_tx_dma_buf, gcs_conn.tx_buf, TX_BUF_LEN);
 
         pdca_channel->idr = 0xFFFFFFFFu;
         pdca_channel->isr;
         pdca_channel->mar = (uint32_t)gcs_tx_dma_buf;
-        pdca_channel->tcr = packet_len;
+        pdca_channel->tcr = 60u;
+        pdca_channel->marr = 0;
+        pdca_channel->tcrr = 0;
+        pdca_channel->psr = AUX_USART_PDCA_PID_TX;
+        pdca_channel->mr = AVR32_PDCA_BYTE << AVR32_PDCA_SIZE_OFFSET;
+        pdca_channel->cr = AVR32_PDCA_ECLR_MASK | AVR32_PDCA_TEN_MASK;
+    } else if (pdca_channel->tcr == 0 &&
+            cpu_conn.last_tx_packet_tick % TELEMETRY_INTERVAL == 50u) {
+        pdca_channel->cr = AVR32_PDCA_TDIS_MASK;
+        pdca_channel->idr = 0xFFFFFFFFu;
+        pdca_channel->isr;
+        pdca_channel->mar = ((uint32_t)gcs_tx_dma_buf) + 60u;
+        pdca_channel->tcr = 60u;
+        pdca_channel->marr = 0;
+        pdca_channel->tcrr = 0;
+        pdca_channel->psr = AUX_USART_PDCA_PID_TX;
+        pdca_channel->mr = AVR32_PDCA_BYTE << AVR32_PDCA_SIZE_OFFSET;
+        pdca_channel->cr = AVR32_PDCA_ECLR_MASK | AVR32_PDCA_TEN_MASK;
+    } else if (pdca_channel->tcr == 0 &&
+            cpu_conn.last_tx_packet_tick % TELEMETRY_INTERVAL == 100u) {
+        pdca_channel->cr = AVR32_PDCA_TDIS_MASK;
+        pdca_channel->idr = 0xFFFFFFFFu;
+        pdca_channel->isr;
+        pdca_channel->mar = ((uint32_t)gcs_tx_dma_buf) + 120u;
+        pdca_channel->tcr = 60u;
+        pdca_channel->marr = 0;
+        pdca_channel->tcrr = 0;
+        pdca_channel->psr = AUX_USART_PDCA_PID_TX;
+        pdca_channel->mr = AVR32_PDCA_BYTE << AVR32_PDCA_SIZE_OFFSET;
+        pdca_channel->cr = AVR32_PDCA_ECLR_MASK | AVR32_PDCA_TEN_MASK;
+    } else if (pdca_channel->tcr == 0 &&
+            cpu_conn.last_tx_packet_tick % TELEMETRY_INTERVAL == 150u) {
+        pdca_channel->cr = AVR32_PDCA_TDIS_MASK;
+        pdca_channel->idr = 0xFFFFFFFFu;
+        pdca_channel->isr;
+        pdca_channel->mar = ((uint32_t)gcs_tx_dma_buf) + 180u;
+        pdca_channel->tcr = 60u;
         pdca_channel->marr = 0;
         pdca_channel->tcrr = 0;
         pdca_channel->psr = AUX_USART_PDCA_PID_TX;
@@ -321,6 +322,8 @@ void comms_tick(void) {
 
     /* Schedule the measurement log transfer over the CPU UART */
     packet_len = fcs_log_serialize(cpu_conn.tx_buf, 192u, &cpu_conn.out_log);
+
+    g_t[4] = Get_system_register(AVR32_COUNT) - g_t[0];
 
     for (i = 0; i < packet_len; i++) {
         cpu_conn.tx_buf[191u - i] = cpu_conn.tx_buf[packet_len - i - 1u];
@@ -338,23 +341,7 @@ void comms_tick(void) {
     fcs_log_init(&(cpu_conn.out_log), FCS_LOG_TYPE_MEASUREMENT,
                  cpu_conn.last_tx_packet_tick);
 
-    /* Set the CPU reset line if the last received packet was more than 10ms
-       ago */
-    if (cpu_reset_countdown_tick == 0 &&
-            (uint32_t)cpu_conn.last_tx_packet_tick -
-			(uint32_t)cpu_conn.last_rx_packet_tick >
-            CPU_TIMEOUT_TICKS) {
-        cpu_reset_countdown_tick = CPU_RESET_TICKS;
-        gpio_local_set_gpio_pin(CPU_RESET_PIN);
-    } else if (cpu_reset_countdown_tick == 1u) {
-        cpu_reset_countdown_tick = 0;
-        cpu_conn.last_rx_packet_tick = cpu_conn.last_tx_packet_tick;
-        gpio_local_clr_gpio_pin(CPU_RESET_PIN);
-    } else if (cpu_reset_countdown_tick > 1u) {
-        cpu_reset_countdown_tick--;
-    } else {
-        /* No timeout conditions to handle */
-    }
+	g_t[5] = Get_system_register(AVR32_COUNT) - g_t[0];
 }
 
 void comms_start_transmit(void) {
@@ -447,9 +434,7 @@ uint32_t bytes_avail) {
 
     bool result = false, got_message = false, did_get_message = false,
          did_get_error = false;
-    uint8_t ch, buf[32];
-    struct cobsr_decode_result decode_result;
-    struct fcs_parameter_t param;
+    uint8_t ch;
 
     while (bytes_avail) {
         ch = conn->rx_buf[conn->rx_buf_idx & 0x1FFu];
@@ -481,45 +466,29 @@ uint32_t bytes_avail) {
         }
 
         if (got_message) {
-            /* Message was fully received; decode it now */
-            if (conn->rx_msg[2] == 0x11u && conn->rx_msg[3] == 0xcu &&
-                    conn->rx_msg_idx > 7u && conn->rx_msg_idx < 20u) {
-                /*
-                RFD900 status packet -- decode and if it's valid, add it to
-                the CPU output parameter log.
-                */
-                result = true;
+			if (conn->rx_msg_idx > 11u &&
+                    conn->rx_msg_idx < FCS_LOG_SERIALIZED_LENGTH) {
+				/* Message was fully received; decode it now */
+				did_get_message = true;
 
-                decode_result = cobsr_decode(buf, sizeof(buf),
-                                             &conn->rx_msg[1],
-                                             conn->rx_msg_idx - 2u);
-                if (decode_result.status == COBSR_DECODE_OK &&
-                        decode_result.out_len == 14u) {
-                    fcs_parameter_set_header(&param, FCS_VALUE_UNSIGNED, 8u,
-                                             4u);
-                    fcs_parameter_set_type(&param, FCS_PARAMETER_RADIO);
-                    fcs_parameter_set_device_id(&param, 0);
-                    param.data.u8[0] = buf[3]; /* RSSI */
-                    param.data.u8[1] = buf[6]; /* Noise */
-                    param.data.u8[2] = buf[8]; /* # errors LSB */
-                    param.data.u8[3] = buf[10]; /* # errors fixed LSB */
-                    (void)fcs_log_add_parameter(&cpu_conn.out_log, &param);
-                }
-            } else if (conn->rx_msg_idx > 7u) {
-                did_get_message = true;
-
-                /* Measurement log packet */
-                result = fcs_log_deserialize(&conn->in_log, conn->rx_msg,
-                                             conn->rx_msg_idx);
-                if (!result) {
-                    fcs_log_init(&(conn->in_log), FCS_LOG_TYPE_COMBINED, 0);
+				/* Measurement log packet */
+				result = fcs_log_deserialize(&conn->in_log, conn->rx_msg,
+				                             conn->rx_msg_idx);
+				if (!result) {
+				    fcs_log_init(&(conn->in_log), FCS_LOG_TYPE_COMBINED, 0);
 					conn->rx_errors++;
-                    did_get_error = true;
-                } else {
+				    did_get_error = true;
+				} else {
 					conn->rx_packets++;
 					conn->last_rx_packet_tick = conn->last_tx_packet_tick;
+
+					/* Copy CPU packets straight to the GCS out buffer */
+					if (conn == &cpu_conn && conn->rx_msg_idx < TX_BUF_LEN) {
+						memcpy(gcs_conn.tx_buf, conn->rx_msg,
+						       conn->rx_msg_idx);
+					}
 				}
-            }
+			}
 
             conn->rx_msg_idx = 0;
 			got_message = false;

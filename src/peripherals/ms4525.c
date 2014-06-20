@@ -49,7 +49,6 @@ static struct i2c_device_t ms4525 = {
     .scl_pin_id = MS4525_TWI_TWCK_PIN,
     .scl_function = MS4525_TWI_TWCK_FUNCTION,
     .enable_pin_id = MS4525_ENABLE_PIN,
-    .sysclk_id = MS4525_TWI_SYSCLK,
 
     .twim_cfg = {
         .twim = MS4525_TWI,
@@ -100,6 +99,9 @@ void ms4525_tick(void) {
             param.data.u16[0] = swap_u16(pressure);
             param.data.u16[1] = swap_u16(temp);
             (void)fcs_log_add_parameter(&cpu_conn.out_log, &param);
+
+            sensor_status.updated |= UPDATED_PITOT;
+            sensor_status.pitot_count++;
         } else {
             /* Something went wrong */
             i2c_device_state_transition(&ms4525, I2C_POWERING_DOWN);

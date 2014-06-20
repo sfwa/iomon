@@ -412,242 +412,26 @@ extern "C" {
 /* Nominal frequency of RC120M in Hz */
 #define OSC_RC120M_NOMINAL_HZ   120000000
 
-#ifndef __ASSEMBLY__
-
 #include <stdbool.h>
 #include <stdint.h>
 #include <avr32/io.h>
 
-extern void osc_priv_enable_osc0(void);
-extern void osc_priv_disable_osc0(void);
-extern bool osc_priv_osc0_is_ready(void);
-extern void osc_priv_enable_osc1(void);
-extern void osc_priv_disable_osc1(void);
-extern bool osc_priv_osc1_is_ready(void);
-extern void osc_priv_enable_osc32(void);
-extern void osc_priv_disable_osc32(void);
-extern bool osc_priv_osc32_is_ready(void);
-extern void osc_priv_enable_rc8m(void);
-extern void osc_priv_disable_rc8m(void);
-extern bool osc_priv_rc8m_is_ready(void);
-extern void osc_priv_enable_rc120m(void);
-extern void osc_priv_disable_rc120m(void);
-extern bool osc_priv_rc120m_is_ready(void);
+static inline void osc_enable(uint8_t id) {
+    Assert(id == OSC_ID_OSC0);
 
-static inline void osc_enable(uint8_t id)
-{
-    switch (id) {
-#ifdef BOARD_OSC0_HZ
-        case OSC_ID_OSC0:
-            osc_priv_enable_osc0();
-            break;
-#endif
-
-#ifdef BOARD_OSC1_HZ
-        case OSC_ID_OSC1:
-            osc_priv_enable_osc1();
-            break;
-#endif
-
-#ifdef BOARD_OSC32_HZ
-        case OSC_ID_OSC32:
-            osc_priv_enable_osc32();
-            break;
-#endif
-
-        case OSC_ID_RC8M:
-            osc_priv_enable_rc8m();
-            break;
-
-        case OSC_ID_RC120M:
-            osc_priv_enable_rc120m();
-            break;
-
-        case OSC_ID_RCSYS:
-            /* RCSYS is always running */
-            break;
-
-        default:
-            /* unhandled_case(id); */
-            break;
-    }
+    AVR32_SCIF.unlock = 0xaa000000 | AVR32_SCIF_OSCCTRL;
+    AVR32_SCIF.oscctrl[0] =
+        (OSC0_STARTUP_VALUE << AVR32_SCIF_OSCCTRL_STARTUP)
+        | (OSC0_GAIN_VALUE << AVR32_SCIF_OSCCTRL_GAIN)
+        | (OSC0_MODE_VALUE << AVR32_SCIF_OSCCTRL_MODE)
+        | (1U << AVR32_SCIF_OSCCTRL_OSCEN);
 }
 
-static inline void osc_disable(uint8_t id)
-{
-    switch (id) {
-#ifdef BOARD_OSC0_HZ
-        case OSC_ID_OSC0:
-            osc_priv_disable_osc0();
-            break;
-#endif
+static inline bool osc_is_ready(uint8_t id) {
+    Assert(id == OSC_ID_OSC0);
 
-#ifdef BOARD_OSC1_HZ
-        case OSC_ID_OSC1:
-            osc_priv_disable_osc1();
-            break;
-#endif
-
-#ifdef BOARD_OSC32_HZ
-        case OSC_ID_OSC32:
-            osc_priv_disable_osc32();
-            break;
-#endif
-
-        case OSC_ID_RC8M:
-            osc_priv_disable_rc8m();
-            break;
-
-        case OSC_ID_RC120M:
-            osc_priv_disable_rc120m();
-            break;
-
-        case OSC_ID_RCSYS:
-            /* RCSYS is always running */
-            break;
-
-        default:
-            /* unhandled_case(id); */
-            break;
-    }
+    return !!(AVR32_SCIF.pclksr & (1 << AVR32_SCIF_OSC0RDY));
 }
-
-static inline bool osc_is_ready(uint8_t id)
-{
-    switch (id) {
-#ifdef BOARD_OSC0_HZ
-        case OSC_ID_OSC0:
-            return !!(AVR32_SCIF.pclksr & (1 << AVR32_SCIF_OSC0RDY));
-#endif
-
-#ifdef BOARD_OSC1_HZ
-        case OSC_ID_OSC1:
-            return !!(AVR32_SCIF.pclksr & (1 << AVR32_SCIF_OSC1RDY));
-#endif
-
-#ifdef BOARD_OSC32_HZ
-        case OSC_ID_OSC32:
-            return !!(AVR32_SCIF.pclksr & (1 << AVR32_SCIF_OSC32RDY));
-#endif
-
-        case OSC_ID_RC8M:
-            return !!(AVR32_SCIF.pclksr & (1U << AVR32_SCIF_RCOSC8MRDY));
-
-        case OSC_ID_RC120M:
-            return !!(AVR32_SCIF.rc120mcr & (1 << AVR32_SCIF_RC120MCR_EN));
-
-        case OSC_ID_RCSYS:
-            /* RCSYS is always ready */
-            return true;
-
-        default:
-            /* unhandled_case(id); */
-            return false;
-    }
-}
-
-/**
- * \todo RC8M may run at either 8 MHz or 1 MHz. Currently, we assume
- * it's always running at 8 MHz.
- */
-static inline uint32_t osc_get_rate(uint8_t id)
-{
-    switch (id) {
-#ifdef BOARD_OSC0_HZ
-        case OSC_ID_OSC0:
-            return BOARD_OSC0_HZ;
-#endif
-
-#ifdef BOARD_OSC1_HZ
-        case OSC_ID_OSC1:
-            return BOARD_OSC1_HZ;
-#endif
-
-#ifdef BOARD_OSC32_HZ
-        case OSC_ID_OSC32:
-            return BOARD_OSC32_HZ;
-#endif
-
-        case OSC_ID_RC8M:
-            return OSC_RC8M_NOMINAL_HZ;
-
-        case OSC_ID_RC120M:
-            return OSC_RC120M_NOMINAL_HZ;
-
-        case OSC_ID_RCSYS:
-            return OSC_RCSYS_NOMINAL_HZ;
-
-        default:
-            /* unhandled_case(id); */
-            return 0;
-    }
-}
-
-#endif /* !__ASSEMBLY__ */
-
-#ifdef __cplusplus
-}
-#endif
-
-/**
- * \ingroup clk_group
- * \defgroup osc_group Oscillator Management
- *
- * This group contains functions and definitions related to configuring
- * and enabling/disabling on-chip oscillators. Internal RC-oscillators,
- * external crystal oscillators and external clock generators are
- * supported by this module. What all of these have in common is that
- * they swing at a fixed, nominal frequency which is normally not
- * adjustable.
- *
- * \par Example: Enabling an oscillator
- *
- * The following example demonstrates how to enable the external
- * oscillator on XMEGA A and wait for it to be ready to use. The
- * oscillator identifiers are platform-specific, so while the same
- * procedure is used on all platforms, the parameter to osc_enable()
- * will be different from device to device.
- * \code
-	osc_enable(OSC_ID_XOSC);
-	osc_wait_ready(OSC_ID_XOSC); \endcode
- *
- * \section osc_group_board Board-specific Definitions
- * If external oscillators are used, the board code must provide the
- * following definitions for each of those:
- *   - \b BOARD_<osc name>_HZ: The nominal frequency of the oscillator.
- *   - \b BOARD_<osc name>_STARTUP_US: The startup time of the
- *     oscillator in microseconds.
- *   - \b BOARD_<osc name>_TYPE: The type of oscillator connected, i.e.
- *     whether it's a crystal or external clock, and sometimes what kind
- *     of crystal it is. The meaning of this value is platform-specific.
- *
- * @{
- */
-
-/**
- * \fn void osc_enable(uint8_t id)
- * \brief Enable oscillator \a id
- *
- * The startup time and mode value is automatically determined based on
- * definitions in the board code.
- */
-/**
- * \fn void osc_disable(uint8_t id)
- * \brief Disable oscillator \a id
- */
-/**
- * \fn osc_is_ready(uint8_t id)
- * \brief Determine whether oscillator \a id is ready.
- * \retval true Oscillator \a id is running and ready to use as a clock
- * source.
- * \retval false Oscillator \a id is not running.
- */
-/**
- * \fn uint32_t osc_get_rate(uint8_t id)
- * \brief Return the frequency of oscillator \a id in Hz
- */
-
-#ifndef __ASSEMBLY__
 
 /**
  * \brief Wait until the oscillator identified by \a id is ready
@@ -657,13 +441,24 @@ static inline uint32_t osc_get_rate(uint8_t id)
  *
  * \param id A number identifying the oscillator to wait for.
  */
-static inline void osc_wait_ready(uint8_t id)
-{
-	while (!osc_is_ready(id)) {
-		/* Do nothing */
-	}
+static inline void osc_wait_ready(uint8_t id) {
+    while (!osc_is_ready(id)) {
+        /* Do nothing */
+    }
 }
 
-#endif /* __ASSEMBLY__ */
+/**
+ * \todo RC8M may run at either 8 MHz or 1 MHz. Currently, we assume
+ * it's always running at 8 MHz.
+ */
+static inline uint32_t osc_get_rate(uint8_t id) {
+    Assert(id == OSC_ID_OSC0);
+
+    return BOARD_OSC0_HZ;
+}
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* OSC_H_INCLUDED */

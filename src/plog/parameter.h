@@ -179,14 +179,6 @@ void fcs_parameter_set_key_value(struct fcs_parameter_t *restrict parameter,
 uint8_t key[4], uint8_t *restrict value, size_t value_length);
 
 /*
-Convert the values associated with a parameter into an array of doubles.
-Returns the number of values in the parameter.
-*/
-size_t fcs_parameter_get_values_d(
-const struct fcs_parameter_t *restrict parameter, double *restrict out_value,
-size_t out_value_length);
-
-/*
 Add a parameter entry to a log packet. Returns `true` if the parameter could
 be added, or `false` if it couldn't.
 */
@@ -203,21 +195,5 @@ if not.
 bool fcs_parameter_find_by_type_and_device(
 const struct fcs_log_t *restrict plog, enum fcs_parameter_type_t type,
 uint8_t device_id, struct fcs_parameter_t *restrict out_parameter);
-
-/*
-Finds all parameters with a given type, and copies the first `max_parameters`
-of them to the array `out_parameters`.
-
-Returns the number of parameters found
-*/
-size_t fcs_parameter_find_all_by_type(const struct fcs_log_t *restrict plog,
-enum fcs_parameter_type_t type,
-struct fcs_parameter_t *restrict out_parameters, size_t max_parameters);
-
-/*
-Set the device ID of all parameters in the log to `device_id`
-*/
-void fcs_log_set_parameter_device_id(struct fcs_log_t *restrict plog,
-uint8_t device_id);
 
 #endif

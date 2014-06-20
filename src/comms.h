@@ -61,8 +61,25 @@ struct connection_t {
 	uint32_t rx_errors;
 };
 
+#define UPDATED_ACCEL 0x01u
+#define UPDATED_BARO 0x02u
+#define UPDATED_MAG 0x04u
+#define UPDATED_GPS 0x08u
+#define UPDATED_PITOT 0x10u
+
+struct sensor_status_t {
+    uint32_t updated;
+
+    uint32_t accel_count;
+    uint32_t baro_count;
+    uint32_t mag_count;
+    uint32_t gps_count;
+    uint32_t pitot_count;
+};
+
 extern struct connection_t cpu_conn;
 extern struct connection_t gcs_conn;
+extern struct sensor_status_t sensor_status;
 
 inline static uint16_t swap_u16(uint16_t x) {
     return ((x & 0x00FFu) << 8u) | ((x & 0xFF00u) >> 8u);

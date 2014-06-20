@@ -161,7 +161,6 @@ SOFTWARE.
 #define GPS_USART_RXD_FUNCTION         0
 #define GPS_USART_IRQ                  AVR32_USART1_IRQ
 #define GPS_USART_IRQ_GROUP            AVR32_USART1_IRQ_GROUP
-#define GPS_USART_SYSCLK               SYSCLK_USART1
 
 #define PDCA_CHANNEL_GPS_TX            0
 #define PDCA_CHANNEL_GPS_RX            1
@@ -178,7 +177,6 @@ SOFTWARE.
 #define MS4525_TWI_TWD_FUNCTION        4
 #define MS4525_TWI_TWCK_PIN            71
 #define MS4525_TWI_TWCK_FUNCTION       4
-#define MS4525_TWI_SYSCLK              SYSCLK_TWIM2
 
 #define PDCA_CHANNEL_MS4525_TX         6
 #define PDCA_CHANNEL_MS4525_RX         7
@@ -195,7 +193,6 @@ SOFTWARE.
 #define HMC5883_TWI_TWD_FUNCTION       0
 #define HMC5883_TWI_TWCK_PIN           67
 #define HMC5883_TWI_TWCK_FUNCTION      0
-#define HMC5883_TWI_SYSCLK             SYSCLK_TWIM0
 
 #define PDCA_CHANNEL_HMC5883_TX        2
 #define PDCA_CHANNEL_HMC5883_RX        3
@@ -212,7 +209,6 @@ SOFTWARE.
 #define MS5611_TWI_TWD_FUNCTION        0
 #define MS5611_TWI_TWCK_PIN            69
 #define MS5611_TWI_TWCK_FUNCTION       0
-#define MS5611_TWI_SYSCLK              SYSCLK_TWIM1
 
 #define PDCA_CHANNEL_MS5611_TX         4
 #define PDCA_CHANNEL_MS5611_RX         5
@@ -231,7 +227,6 @@ SOFTWARE.
 #define MPU6000_SPI_CLK_FUNCTION       1
 #define MPU6000_SPI_CS_PIN             54
 #define MPU6000_SPI_CS_FUNCTION        1
-#define MPU6000_SPI_SYSCLK             SYSCLK_SPI1
 
 #define PDCA_CHANNEL_MPU6000_TX        14
 #define PDCA_CHANNEL_MPU6000_RX        13
@@ -274,7 +269,6 @@ SOFTWARE.
 #define PWM_2_FUNCTION                 0
 #define PWM_3_PIN                      75
 #define PWM_3_FUNCTION                 0
-#define PWM_SYSCLK                     SYSCLK_PWM
 
 #define PWM_ENABLE_PIN                 82
 
@@ -293,7 +287,6 @@ SOFTWARE.
 #define CPU_USART_RXD_FUNCTION         4
 #define CPU_USART_IRQ                  AVR32_USART0_IRQ
 #define CPU_USART_IRQ_GROUP            AVR32_USART0_IRQ_GROUP
-#define CPU_USART_SYSCLK               SYSCLK_USART0
 
 #define PDCA_CHANNEL_CPU_TX            9
 #define PDCA_CHANNEL_CPU_RX            10
@@ -310,7 +303,6 @@ SOFTWARE.
 #define AUX_USART_RXD_FUNCTION         4
 #define AUX_USART_IRQ                  AVR32_USART4_IRQ
 #define AUX_USART_IRQ_GROUP            AVR32_USART4_IRQ_GROUP
-#define AUX_USART_SYSCLK               SYSCLK_USART4
 
 #define PDCA_CHANNEL_AUX_TX            11
 #define PDCA_CHANNEL_AUX_RX            12

@@ -60,7 +60,7 @@
 #include <gpio.h>
 #include <board.h>
 #include <interrupt.h>
-#include <sysclk.h>
+#include <pll.h>
 #include <usart.h>
 
 #endif

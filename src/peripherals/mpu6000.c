@@ -83,7 +83,6 @@ static struct spi_device_t mpu6000 = {
     .clk_pin_id = MPU6000_SPI_CLK_PIN,
     .clk_function = MPU6000_SPI_CLK_FUNCTION,
     .enable_pin_id = MPU6000_ENABLE_PIN,
-    .sysclk_id = MPU6000_SPI_SYSCLK,
 
     .spim_cfg = {
         .spim = MPU6000_SPI,
@@ -115,13 +114,7 @@ void mpu6000_tick(void) {
         Accel XYZ is in data[0:3], temp is in data [3], and gyro XYZ is in
         data[4:7] (Python slice notation).
         */
-        data[0] = read_sequence[0].rx_buf[1];
-		data[1] = read_sequence[0].rx_buf[2];
-		data[2] = read_sequence[0].rx_buf[3];
-		data[3] = read_sequence[0].rx_buf[4];
-		data[4] = read_sequence[0].rx_buf[5];
-		data[5] = read_sequence[0].rx_buf[6];
-		data[6] = read_sequence[0].rx_buf[7];
+        memcpy(data, &read_sequence[0].rx_buf[1], sizeof(data));
 
         fcs_parameter_set_header(&param, FCS_VALUE_SIGNED, 16u, 3u);
         fcs_parameter_set_type(&param, FCS_PARAMETER_ACCELEROMETER_XYZ);
@@ -137,6 +130,9 @@ void mpu6000_tick(void) {
         param.data.i16[1] = swap_i16(data[4]);
         param.data.i16[2] = swap_i16(-data[6]);
         (void)fcs_log_add_parameter(&cpu_conn.out_log, &param);
+
+        sensor_status.updated |= UPDATED_ACCEL;
+        sensor_status.accel_count++;
 
         mpu6000.state_timer = 0;
         /*

@@ -137,7 +137,7 @@ size_t dst_buf_len, const uint8_t * src_ptr, size_t src_len) {
     uint8_t *           dst_write_ptr       = dst_buf_ptr;
     size_t              remaining_input_bytes;
     size_t              remaining_output_bytes;
-    size_t              num_output_bytes;
+    uint8_t             num_output_bytes;
     uint8_t             src_byte;
     size_t              i;
     uint8_t             len_code;
@@ -150,36 +150,27 @@ size_t dst_buf_len, const uint8_t * src_ptr, size_t src_len) {
         }
 
         /* Calculate remaining input bytes */
-        fcs_assert(src_end_ptr - src_ptr >= 0);
         remaining_input_bytes = (size_t)(src_end_ptr - src_ptr);
+        remaining_output_bytes = (size_t)(dst_buf_end_ptr - dst_write_ptr);
 
-        if ((len_code - 1u) < remaining_input_bytes) {
+        if (len_code == 1u && remaining_output_bytes) {
+            *dst_write_ptr++ = 0;
+        } else if ((len_code - 1u) < remaining_input_bytes) {
             num_output_bytes = len_code - 1u;
 
             /* Check length code against remaining output buffer space */
-            fcs_assert(dst_buf_end_ptr - dst_write_ptr >= 0);
-            remaining_output_bytes =
-                (size_t)(dst_buf_end_ptr - dst_write_ptr);
-            if (num_output_bytes > remaining_output_bytes) {
+
+            if (num_output_bytes >= remaining_output_bytes) {
                 result.status |= COBSR_DECODE_OUT_BUFFER_OVERFLOW;
                 num_output_bytes = remaining_output_bytes;
             }
 
-            fcs_assert(num_output_bytes <= 1024u);
-            for (i = num_output_bytes; i != 0; i--) {
-                src_byte = *src_ptr++;
-                if (src_byte == 0) {
-                    result.status |= COBSR_DECODE_ZERO_BYTE_IN_INPUT;
-                }
-                *dst_write_ptr++ = src_byte;
+            for (; num_output_bytes; num_output_bytes--) {
+                *dst_write_ptr++ = *src_ptr++;
             }
 
             /* Add a zero to the end */
             if (len_code != 0xFFu) {
-                if (dst_write_ptr >= dst_buf_end_ptr) {
-                    result.status |= COBSR_DECODE_OUT_BUFFER_OVERFLOW;
-                    break;
-                }
                 *dst_write_ptr++ = 0;
             }
         } else {
@@ -189,30 +180,18 @@ size_t dst_buf_len, const uint8_t * src_ptr, size_t src_len) {
             num_output_bytes = remaining_input_bytes;
 
             /* Check length code against remaining output buffer space */
-            fcs_assert(dst_buf_end_ptr - dst_write_ptr >= 0);
-            remaining_output_bytes =
-                (size_t)(dst_buf_end_ptr - dst_write_ptr);
-            if (num_output_bytes > remaining_output_bytes) {
+            if (num_output_bytes >= remaining_output_bytes) {
                 result.status |= COBSR_DECODE_OUT_BUFFER_OVERFLOW;
                 num_output_bytes = remaining_output_bytes;
             }
 
-            fcs_assert(num_output_bytes <= 1024u);
-            for (i = num_output_bytes; i != 0; i--) {
-                src_byte = *src_ptr++;
-                if (src_byte == 0) {
-                    result.status |= COBSR_DECODE_ZERO_BYTE_IN_INPUT;
-                }
-                *dst_write_ptr++ = src_byte;
+            for (; num_output_bytes; num_output_bytes--) {
+                *dst_write_ptr++ = *src_ptr++;
             }
 
             /* Write final data byte, if applicable for COBS/R encoding. */
             if (len_code - 1u > remaining_input_bytes) {
-                if (dst_write_ptr >= dst_buf_end_ptr) {
-                    result.status |= COBSR_DECODE_OUT_BUFFER_OVERFLOW;
-                } else {
-                    *dst_write_ptr++ = len_code;
-                }
+                *dst_write_ptr++ = len_code;
             }
 
             /* Exit the loop */

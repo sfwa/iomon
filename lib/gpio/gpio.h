@@ -90,12 +90,6 @@
 #define GPIO_FALLING    (7 << 7) /**< Sense Falling Edge */
 /** @} */
 
-/** A type definition of pins and modules connectivity. */
-typedef struct {
-	uint32_t pin;      /**< Module pin. */
-	uint32_t function; /**< Module function. */
-} gpio_map_t[];
-
 /** \name Peripheral Bus Interface
  *
  * Low-speed interface with a non-deterministic number of clock cycles per
@@ -110,99 +104,11 @@ typedef struct {
  * @{
  */
 
-uint32_t gpio_enable_module(const gpio_map_t gpiomap, uint32_t size);
-
 uint32_t gpio_enable_module_pin(uint32_t pin, uint32_t function);
-
-void gpio_enable_gpio(const gpio_map_t gpiomap, uint32_t size);
-
-void gpio_enable_gpio_pin(uint32_t pin);
-
-void gpio_enable_pin_pull_up(uint32_t pin);
-
-void gpio_disable_pin_pull_up(uint32_t pin);
-
-#if defined(AVR32_GPIO_200_H_INCLUDED) || defined(AVR32_GPIO_210_H_INCLUDED) || defined(AVR32_GPIO_212_H_INCLUDED)
-
-void gpio_enable_pin_pull_down(uint32_t pin);
-
-void gpio_disable_pin_pull_down(uint32_t pin);
-
-void gpio_enable_pin_buskeeper(uint32_t pin);
-
-void gpio_disable_pin_buskeeper(uint32_t pin);
-
-#endif
 
 void gpio_configure_pin(uint32_t pin, uint32_t flags);
 
-void gpio_configure_group(uint32_t port, uint32_t mask, uint32_t flags);
-
-bool gpio_get_pin_value(uint32_t pin);
-
-/**
- * \brief Check if the pin is in low logical level.
- *
- * \param pin The pin number.
- * \return bool    \c true if the pin is in low logical level
- *                 \c false if the pin is not in low logical level
- */
-inline static bool gpio_pin_is_low(uint32_t pin)
-{
-	return (gpio_get_pin_value(pin) == 0);
-}
-
-/**
- * \brief Check if the pin is in high logical level.
- *
- * \param pin The pin number.
- * \return bool    \c true  if the pin is in high logical level
- *                 \c false if the pin is not in high logical level
- */
-inline static bool gpio_pin_is_high(uint32_t pin)
-{
-	return (gpio_get_pin_value(pin) != 0);
-}
-
-bool gpio_get_gpio_pin_output_value(uint32_t pin);
-
-bool gpio_get_gpio_open_drain_pin_output_value(uint32_t pin);
-
-void gpio_set_gpio_pin(uint32_t pin);
-
-void gpio_set_pin_high(uint32_t pin);
-
-void gpio_set_group_high(uint32_t port, uint32_t mask);
-
-void gpio_clr_gpio_pin(uint32_t pin);
-
-void gpio_set_pin_low(uint32_t pin);
-
-void gpio_set_group_low(uint32_t port, uint32_t mask);
-
-void gpio_tgl_gpio_pin(uint32_t pin);
-
-void gpio_toggle_pin(uint32_t pin);
-
-void gpio_toggle_group(uint32_t port, uint32_t mask);
-
-void gpio_set_gpio_open_drain_pin(uint32_t pin);
-
-void gpio_clr_gpio_open_drain_pin(uint32_t pin);
-
-void gpio_tgl_gpio_open_drain_pin(uint32_t pin);
-
-void gpio_enable_pin_glitch_filter(uint32_t pin);
-
-void gpio_disable_pin_glitch_filter(uint32_t pin);
-
 uint32_t gpio_enable_pin_interrupt(uint32_t pin, uint32_t mode);
-
-void gpio_disable_pin_interrupt(uint32_t pin);
-
-bool gpio_get_pin_interrupt_flag(uint32_t pin);
-
-void gpio_clear_pin_interrupt_flag(uint32_t pin);
 
 /** @} */
 
@@ -234,31 +140,6 @@ inline static void gpio_local_init(void)
 {
 	Set_system_register(AVR32_CPUCR,
 			Get_system_register(AVR32_CPUCR) | AVR32_CPUCR_LOCEN_MASK);
-}
-
-/** \brief Enables the output driver of a pin.
- *
- * \param pin The pin number.
- *
- * \note \ref gpio_local_init must have been called beforehand.
- *
- * \note This function does not enable the GPIO mode of the pin.
- *       \ref gpio_enable_gpio_pin can be called for this purpose.
- */
-inline static void gpio_local_enable_pin_output_driver(uint32_t pin)
-{
-	AVR32_GPIO_LOCAL.port[pin >> 5].oders = 1 << (pin & 0x1F);
-}
-
-/** \brief Disables the output driver of a pin.
- *
- * \param pin The pin number.
- *
- * \note \ref gpio_local_init must have been called beforehand.
- */
-inline static void gpio_local_disable_pin_output_driver(uint32_t pin)
-{
-	AVR32_GPIO_LOCAL.port[pin >> 5].oderc = 1 << (pin & 0x1F);
 }
 
 /** \brief Returns the value of a pin.
@@ -322,108 +203,9 @@ inline static void gpio_local_tgl_gpio_pin(uint32_t pin)
 	AVR32_GPIO_LOCAL.port[pin >> 5].ovrt = 1 << (pin & 0x1F);
 }
 
-/** \brief Initializes the configuration of a GPIO pin so that it can be used
- *         with GPIO open-drain functions.
- *
- * \note This function must have been called at least once before using
- *       \ref gpio_local_set_gpio_open_drain_pin,
- *       \ref gpio_local_clr_gpio_open_drain_pin or
- *       \ref gpio_local_tgl_gpio_open_drain_pin.
- */
-inline static void gpio_local_init_gpio_open_drain_pin(uint32_t pin)
-{
-	AVR32_GPIO_LOCAL.port[pin >> 5].ovrc = 1 << (pin & 0x1F);
-}
-
-/** \brief Drives a GPIO pin to 1 using open drain.
- *
- * \param pin The pin number.
- *
- * \note \ref gpio_local_init and \ref gpio_local_init_gpio_open_drain_pin must
- *       have been called beforehand.
- *
- * \note This function does not enable the GPIO mode of the pin.
- *       \ref gpio_enable_gpio_pin can be called for this purpose.
- */
-inline static void gpio_local_set_gpio_open_drain_pin(uint32_t pin)
-{
-	AVR32_GPIO_LOCAL.port[pin >> 5].oderc = 1 << (pin & 0x1F);
-}
-
-/** \brief Drives a GPIO pin to 0 using open drain.
- *
- * \param pin The pin number.
- *
- * \note \ref gpio_local_init and \ref gpio_local_init_gpio_open_drain_pin must
- *       have been called beforehand.
- *
- * \note This function does not enable the GPIO mode of the pin.
- *       \ref gpio_enable_gpio_pin can be called for this purpose.
- */
-inline static void gpio_local_clr_gpio_open_drain_pin(uint32_t pin)
-{
-	AVR32_GPIO_LOCAL.port[pin >> 5].oders = 1 << (pin & 0x1F);
-}
-
-/** \brief Toggles a GPIO pin using open drain.
- *
- * \param pin The pin number.
- *
- * \note \ref gpio_local_init and \ref gpio_local_init_gpio_open_drain_pin must
- *       have been called beforehand.
- *
- * \note This function does not enable the GPIO mode of the pin.
- *       \ref gpio_enable_gpio_pin can be called for this purpose.
- */
-inline static void gpio_local_tgl_gpio_open_drain_pin(uint32_t pin)
-{
-	AVR32_GPIO_LOCAL.port[pin >> 5].odert = 1 << (pin & 0x1F);
-}
-
 /** @} */
 #endif /* AVR32_GPIO_LOCAL_ADDRESS */
 
-#if UC3L
-
-/** \name Peripheral Event System support
- *
- * The GPIO can be programmed to output peripheral events whenever an interrupt
- * condition is detected, such as pin value change, or only when a rising or
- * falling edge is detected.
- *
- * @{
- */
-
-/** \brief Enables the peripheral event generation of a pin.
- *
- * \param pin The pin number.
- *
- */
-inline static void gpio_enable_pin_periph_event(uint32_t pin)
-{
-	AVR32_GPIO.port[pin >> 5].oderc = 1 << (pin & 0x1F); /* The GPIO output
-	                                                      * driver is
-	                                                      * disabled for
-	                                                      * that pin. */
-	AVR32_GPIO.port[pin >> 5].evers = 1 << (pin & 0x1F);
-}
-
-/** \brief Disables the peripheral event generation of a pin.
- *
- * \param pin The pin number.
- *
- */
-inline static void gpio_disable_pin_periph_event(uint32_t pin)
-{
-	AVR32_GPIO.port[pin >> 5].everc = 1 << (pin & 0x1F);
-}
-
-uint32_t gpio_configure_pin_periph_event_mode(uint32_t pin, uint32_t mode,
-		uint32_t use_igf);
-
-/** @} */
-
-#endif
 
 /** @} */
 

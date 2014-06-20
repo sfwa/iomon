@@ -49,7 +49,6 @@ struct spi_device_t {
     uint8_t clk_pin_id;
     uint8_t clk_function;
     uint8_t enable_pin_id;
-    uint8_t sysclk_id;
 
     /* SPIM/PDCA configuration */
     struct spim_pdca_cfg_t spim_cfg;

@@ -38,12 +38,14 @@ uint16_t frame_id) {
     fcs_assert(type > FCS_LOG_TYPE_INVALID);
     fcs_assert(type < FCS_LOG_TYPE_LAST);
 
+    plog->canary1 = 0xdeadbeefu;
     plog->length = FCS_LOG_MIN_LENGTH;
     plog->data[0] = (uint8_t)type;
     plog->data[1] = 0;
     plog->data[2] = 0;
     plog->data[3] = (frame_id >> 0u) & 0xFFu;
     plog->data[4] = (frame_id >> 8u) & 0xFFu;
+    plog->canary2 = 0xfeedfaceu;
 }
 
 /*
@@ -62,6 +64,7 @@ struct fcs_log_t *plog) {
                plog->length <= FCS_LOG_MAX_LENGTH);
     fcs_assert(plog->data[0] > (uint8_t)FCS_LOG_TYPE_INVALID);
     fcs_assert(plog->data[0] < (uint8_t)FCS_LOG_TYPE_LAST);
+    fcs_assert(plog->canary1 == 0xdeadbeefu && plog->canary2 == 0xfeedfaceu);
 
     /*
     4 bytes for CRC, 2 + ceil((len+4) / 256) bytes for COBS-R + NUL start/end
@@ -126,6 +129,9 @@ size_t in_buf_len) {
         goto invalid;
     }
 
+    plog->canary1 = 0xdeadbeefu;
+    plog->canary2 = 0xfeedfaceu;
+
     return true;
 
 invalid:
@@ -136,39 +142,4 @@ invalid:
     */
     plog->length = 0xFFFFFFFFu;
     return false;
-}
-
-/*
-Merge the logs `src` and `dst`, with the result stored in `dst`.
-
-If `dst` has insufficient space available, return `false`, otherwise `true`.
-*/
-bool fcs_log_merge(struct fcs_log_t *dst, const struct fcs_log_t *src) {
-    fcs_assert(dst);
-    fcs_assert(((uint32_t)dst & 0x3) == 0);
-    fcs_assert(FCS_LOG_MIN_LENGTH <= dst->length &&
-               dst->length <= FCS_LOG_MAX_LENGTH);
-    fcs_assert(src);
-    fcs_assert(((uint32_t)src & 0x3) == 0);
-    fcs_assert(FCS_LOG_MIN_LENGTH <= src->length &&
-               src->length <= FCS_LOG_MAX_LENGTH);
-    fcs_assert(dst->data[0] > (uint8_t)FCS_LOG_TYPE_INVALID);
-    fcs_assert(dst->data[0] < (uint8_t)FCS_LOG_TYPE_LAST);
-    fcs_assert(src->data[0] > (uint8_t)FCS_LOG_TYPE_INVALID);
-    fcs_assert(src->data[0] < (uint8_t)FCS_LOG_TYPE_LAST);
-
-    /* Make sure there's enough room in dst */
-    if (dst->length + src->length - 5u > FCS_LOG_MAX_LENGTH) {
-        return false;
-    }
-
-    /* If the types differ, set the dst type to FCS_LOG_TYPE_COMBINED */
-    if (dst->data[0] != dst->data[1]) {
-        dst->data[0] = (uint8_t)FCS_LOG_TYPE_COMBINED;
-    }
-
-    memcpy(&dst->data[dst->length], &src->data[5], src->length - 5u);
-    dst->length += src->length - 5u;
-
-    return true;
 }
