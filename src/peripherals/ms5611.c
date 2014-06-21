@@ -60,9 +60,9 @@ static struct twim_transaction_t read_sequence[] = {
 };
 
 static struct i2c_device_t ms5611 = {
-    .speed = 150000u,
-    .power_delay = 1000u,
-    .init_timeout = 1300u,
+    .speed = 250000u,
+    .power_delay = 100u,
+    .init_timeout = 300u,
     .read_timeout = 150u,
 
     .sda_pin_id = MS5611_TWI_TWD_PIN,

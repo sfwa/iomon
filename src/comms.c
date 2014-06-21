@@ -204,7 +204,7 @@ void comms_tick(void) {
     /*
     Turn LED1 on if we haven't seen each of the sensors updated this second
     */
-    if (cpu_conn.last_tx_packet_tick % 500 == 0) {
+    if (cpu_conn.last_tx_packet_tick % 150 == 0) {
         if (sensor_status.updated == (UPDATED_ACCEL | UPDATED_BARO |
                                       UPDATED_MAG | UPDATED_GPS |
                                       UPDATED_PITOT)) {
