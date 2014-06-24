@@ -179,7 +179,7 @@ void comms_init(void) {
     usart_options.baudrate = 57600u;
     usart_options.charlength = 8u;
     usart_options.paritytype = USART_NO_PARITY;
-    usart_options.stopbits = 5;
+    usart_options.stopbits = USART_1_STOPBIT;
     usart_options.channelmode = USART_NORMAL_CHMODE;
     result = usart_init_rs232(AUX_USART, &usart_options, CONFIG_MAIN_HZ);
     fcs_assert(result == USART_SUCCESS);
@@ -235,7 +235,7 @@ void comms_tick(void) {
 
     for (i = 5u; i < gcs_conn.in_log.length - 3u; ) {
         param_len = _extract_length(gcs_conn.in_log.data[i]);
-        param_type = (enum fcs_parameter_type_t)cpu_conn.out_log.data[i + 2u];
+        param_type = (enum fcs_parameter_type_t)gcs_conn.in_log.data[i + 2u];
         if (param_type == FCS_PARAMETER_INVALID || !param_len ||
                 param_len > sizeof(struct fcs_parameter_t) ||
                 i + param_len > gcs_conn.in_log.length) {
@@ -414,7 +414,7 @@ uint32_t channel_id) {
         pdca_channel->tcr = RX_BUF_LEN;
         pdca_channel->marr = (uint32_t)conn->rx_buf;
         pdca_channel->tcrr = RX_BUF_LEN;
-        pdca_channel->psr = CPU_USART_PDCA_PID_RX;
+        pdca_channel->psr = (conn == &cpu_conn) ? CPU_USART_PDCA_PID_RX : AUX_USART_PDCA_PID_RX;
         pdca_channel->mr = (AVR32_PDCA_BYTE << AVR32_PDCA_SIZE_OFFSET)
             | (1 << AVR32_PDCA_RING_OFFSET);
         pdca_channel->cr = AVR32_PDCA_ECLR_MASK | AVR32_PDCA_TEN_MASK;
@@ -466,7 +466,7 @@ uint32_t bytes_avail) {
         }
 
         if (got_message) {
-			if (conn->rx_msg_idx > 11u &&
+			if (conn->rx_msg_idx > 18u &&
                     conn->rx_msg_idx < FCS_LOG_SERIALIZED_LENGTH) {
 				/* Message was fully received; decode it now */
 				did_get_message = true;
