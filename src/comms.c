@@ -143,11 +143,12 @@ void comms_set_cpu_status(uint32_t cycles_used) {
 
     /* Save this to measurement log */
 	fcs_parameter_set_header(&param, FCS_VALUE_UNSIGNED, 16u,
-	1u);
+	2u);
 	fcs_parameter_set_type(&param, FCS_PARAMETER_IO_STATUS);
 	fcs_parameter_set_device_id(&param, 0);
 	param.data.u16[0] = max_proportion_used < 0xFFFFu ?
 		max_proportion_used : 0xFFFFu;
+    param.data.u16[1] = gcs_conn.last_rx_packet_tick;
 	(void)fcs_log_add_parameter(&cpu_conn.out_log, &param);
 }
 
@@ -338,6 +339,7 @@ void comms_tick(void) {
     */
 
     cpu_conn.last_tx_packet_tick++;
+    gcs_conn.last_tx_packet_tick++;
     fcs_log_init(&(cpu_conn.out_log), FCS_LOG_TYPE_MEASUREMENT,
                  cpu_conn.last_tx_packet_tick);
 

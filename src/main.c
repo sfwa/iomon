@@ -100,7 +100,7 @@ int main(void) {
 		start_t = frame * counts_per_ms;
 
         /* Input/output procedure */
-        //gp_tick();
+        gp_tick();
 
         /* Sensor input procedures */
         accel_gyro_tick();
