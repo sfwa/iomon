@@ -29,14 +29,14 @@ SOFTWARE.
 #include "pwm.h"
 #include "plog/parameter.h"
 
-
+#define PWM_THROTTLE_FAILSAFE_THRESHOLD 15000u
 #define PWM_INTERNAL_TO_EXTERNAL_THRESHOLD 20000u
 #define PWM_EXTERNAL_TO_INTERNAL_THRESHOLD 40000u
 #define PWM_TRANSITION_PULSE_COUNT 5u
 #define PWM_TRIM_MEASUREMENT_TICKS 5000u
 
 
-#define PWM_FAILSAFE_INTERNAL_TICKS 10u
+#define PWM_FAILSAFE_INTERNAL_TICKS 50u
 #define PWM_FAILSAFE_EXTERNAL_TICKS 1500u
 
 
@@ -209,19 +209,36 @@ void pwm_tick(void) {
             pwm_missed_internal_ticks++;
         }
 
+        if (pwm_input_values[3] < PWM_INTERNAL_TO_EXTERNAL_THRESHOLD) {
+            pwm_transition_pulses++;
+        } else {
+            pwm_transition_pulses = 0;
+        }
+
         if (pwm_missed_internal_ticks > PWM_FAILSAFE_INTERNAL_TICKS) {
-            // pwm_terminate_flight(); FIXME
+            pwm_terminate_flight();
         }
     } else {
         out_values[0] = pwm_input_values[0];
         out_values[1] = pwm_input_values[1];
         out_values[2] = pwm_input_values[2];
 
-        pwm_missed_external_ticks = 0;
         /*
-        FIXME: detect R/C failsafe condition -- based on simultaneous throttle
+        Detect R/C failsafe condition -- based on simultaneous throttle
         off and switch to auto.
         */
+        if (pwm_input_values[3] > PWM_EXTERNAL_TO_INTERNAL_THRESHOLD) {
+            if (pwm_input_values[0] < PWM_THROTTLE_FAILSAFE_THRESHOLD) {
+                pwm_missed_external_ticks++;
+                pwm_transition_pulses = 0;
+            } else {
+                pwm_transition_pulses++;
+                pwm_missed_external_ticks = 0;
+            }
+        } else {
+            pwm_transition_pulses = 0;
+            pwm_missed_external_ticks = 0;
+        }
 
         if (pwm_missed_external_ticks > PWM_FAILSAFE_EXTERNAL_TICKS) {
             pwm_terminate_flight();
@@ -266,16 +283,6 @@ void pwm_tick(void) {
     Handle internal <-> external control transition -- wait for
     PWM_TRANSITION_PULSE_COUNT pulses higher/lower than the threshold.
     */
-    if (pwm_use_internal && pwm_input_values[3] <
-            PWM_INTERNAL_TO_EXTERNAL_THRESHOLD) {
-        pwm_transition_pulses++;
-    } else if (!pwm_use_internal && pwm_input_values[3] >
-            PWM_EXTERNAL_TO_INTERNAL_THRESHOLD) {
-        pwm_transition_pulses++;
-    } else {
-        pwm_transition_pulses = 0;
-    }
-
     if (pwm_transition_pulses >= PWM_TRANSITION_PULSE_COUNT) {
         pwm_use_internal = !pwm_use_internal;
     }
@@ -328,20 +335,17 @@ void pwm_terminate_flight(void) {
     Infinite loop to lock out any possibility of recovery -- reset the WDT
     each time as well otherwise the system will restart itself.
     */
-    static uint16_t pwm_values[PWM_NUM_OUTPUTS] = {0, 18000u, 18000u, 0};
+    static uint16_t pwm_values[PWM_NUM_OUTPUTS] = {0, 25000u, 25000u, 0};
 
     LED_ON(LED3_GPIO);
 
     irqflags_t flags = cpu_irq_save();
     /* Take control of the PWM */
     for (;;) {
-        /*
-        FIXME
 		pwm_enable();
         pwm_set_values(pwm_values);
-		*/
 
-        pwm_disable();
+        //pwm_disable();
     }
     cpu_irq_restore(flags);
 
