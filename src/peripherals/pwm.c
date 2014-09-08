@@ -36,7 +36,7 @@ SOFTWARE.
 #define PWM_TRIM_MEASUREMENT_TICKS 5000u
 
 
-#define PWM_FAILSAFE_INTERNAL_TICKS 50u
+#define PWM_FAILSAFE_INTERNAL_TICKS 750u
 #define PWM_FAILSAFE_EXTERNAL_TICKS 1500u
 
 
@@ -227,7 +227,8 @@ void pwm_tick(void) {
         Detect R/C failsafe condition -- based on simultaneous throttle
         off and switch to auto.
         */
-        if (pwm_input_values[3] > PWM_EXTERNAL_TO_INTERNAL_THRESHOLD) {
+        if (pwm_input_values[3] > PWM_EXTERNAL_TO_INTERNAL_THRESHOLD &&
+                pwm_trim_measurement_ticks == PWM_TRIM_MEASUREMENT_TICKS) {
             if (pwm_input_values[0] < PWM_THROTTLE_FAILSAFE_THRESHOLD) {
                 pwm_missed_external_ticks++;
                 pwm_transition_pulses = 0;
@@ -342,10 +343,10 @@ void pwm_terminate_flight(void) {
     irqflags_t flags = cpu_irq_save();
     /* Take control of the PWM */
     for (;;) {
-		pwm_enable();
-        pwm_set_values(pwm_values);
+		//pwm_enable();
+        //pwm_set_values(pwm_values);
 
-        //pwm_disable();
+        pwm_disable();
     }
     cpu_irq_restore(flags);
 
