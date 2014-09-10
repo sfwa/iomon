@@ -35,10 +35,8 @@ SOFTWARE.
 #define PWM_TRANSITION_PULSE_COUNT 5u
 #define PWM_TRIM_MEASUREMENT_TICKS 5000u
 
-
 #define PWM_FAILSAFE_INTERNAL_TICKS 750u
 #define PWM_FAILSAFE_EXTERNAL_TICKS 1500u
-
 
 static uint32_t pwm_out_values[PWM_NUM_OUTPUTS];
 static uint16_t pwm_trim_offsets[PWM_NUM_OUTPUTS];
@@ -228,7 +226,7 @@ void pwm_tick(void) {
         off and switch to auto.
         */
         if (pwm_input_values[3] > PWM_EXTERNAL_TO_INTERNAL_THRESHOLD &&
-                pwm_trim_measurement_ticks == PWM_TRIM_MEASUREMENT_TICKS) {
+                pwm_trim_measurement_ticks >= PWM_TRIM_MEASUREMENT_TICKS) {
             if (pwm_input_values[0] < PWM_THROTTLE_FAILSAFE_THRESHOLD) {
                 pwm_missed_external_ticks++;
                 pwm_transition_pulses = 0;
